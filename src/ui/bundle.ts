@@ -353,6 +353,31 @@ export function getHtmlBundle(): string {
       margin: 0 auto;
     }
 
+    .review-content {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border-subtle);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .feedback-input {
+      margin-top: 1rem;
+    }
+
+    .feedback-input label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--foreground-subtle);
+      margin-bottom: 0.5rem;
+    }
+
     .session-ended {
       text-align: center;
       padding: 4rem 0;
@@ -478,6 +503,9 @@ export function getHtmlBundle(): string {
         case 'slider':
           html += renderSlider(q);
           break;
+        case 'review_section':
+          html += renderReviewSection(q);
+          break;
         default:
           html += '<p>Question type "' + q.questionType + '" not yet implemented.</p>';
           html += '<div class="btn-group"><button onclick="submitAnswer(\\'' + q.id + '\\', {})" class="btn">Skip</button></div>';
@@ -585,6 +613,23 @@ export function getHtmlBundle(): string {
       return html;
     }
     
+    function renderReviewSection(q) {
+      let html = '';
+      if (q.config.context) {
+        html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
+      }
+      html += '<div class="review-content">' + escapeHtml(q.config.content || '') + '</div>';
+      html += '<div class="feedback-input">';
+      html += '<label for="feedback_' + q.id + '">Feedback (optional)</label>';
+      html += '<textarea id="feedback_' + q.id + '" class="textarea" rows="3" placeholder="Any suggestions or changes..."></textarea>';
+      html += '</div>';
+      html += '<div class="btn-group">';
+      html += '<button onclick="submitReview(\\'' + q.id + '\\', \\'approve\\')" class="btn btn-success">Approve</button>';
+      html += '<button onclick="submitReview(\\'' + q.id + '\\', \\'revise\\')" class="btn btn-danger">Needs Revision</button>';
+      html += '</div>';
+      return html;
+    }
+    
     function attachListeners() {
       document.querySelectorAll('input[type="range"]').forEach(slider => {
         const id = slider.id.replace('slider_', 'slider_val_');
@@ -627,6 +672,12 @@ export function getHtmlBundle(): string {
       if (slider) {
         submitAnswer(questionId, { value: parseFloat(slider.value) });
       }
+    }
+    
+    function submitReview(questionId, decision) {
+      const feedbackEl = document.getElementById('feedback_' + questionId);
+      const feedback = feedbackEl ? feedbackEl.value : '';
+      submitAnswer(questionId, { decision, feedback: feedback || undefined });
     }
     
     function escapeHtml(text) {
