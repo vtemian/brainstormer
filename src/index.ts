@@ -14,28 +14,27 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
   // Create all tools with session tracking
   const baseTools = createBrainstormerTools(sessionManager);
 
-  // Wrap start_session to track ownership
+  // Wrap start_session to track ownership, but use original execute for enforcement
+  const originalStartSession = baseTools.start_session;
   const wrappedStartSession = {
-    ...baseTools.start_session,
-    execute: async (args: { title?: string }, toolCtx: { sessionID: string }) => {
-      const result = await sessionManager.startSession({ title: args.title });
+    ...originalStartSession,
+    execute: async (args: any, toolCtx: any) => {
+      // Call original execute (which has enforcement)
+      const result = await originalStartSession.execute(args, toolCtx);
 
-      // Track this brainstormer session
-      const openCodeSessionId = toolCtx.sessionID;
-      if (!sessionsByOpenCodeSession.has(openCodeSessionId)) {
-        sessionsByOpenCodeSession.set(openCodeSessionId, new Set());
+      // If successful, track the session
+      const sessionIdMatch = result.match(/ses_[a-z0-9]+/);
+      if (sessionIdMatch) {
+        const openCodeSessionId = toolCtx?.sessionID;
+        if (openCodeSessionId) {
+          if (!sessionsByOpenCodeSession.has(openCodeSessionId)) {
+            sessionsByOpenCodeSession.set(openCodeSessionId, new Set());
+          }
+          sessionsByOpenCodeSession.get(openCodeSessionId)!.add(sessionIdMatch[0]);
+        }
       }
-      sessionsByOpenCodeSession.get(openCodeSessionId)!.add(result.session_id);
 
-      return `## Session Started
-
-| Field | Value |
-|-------|-------|
-| Session ID | ${result.session_id} |
-| URL | ${result.url} |
-
-Browser opened. Use question tools (pick_one, confirm, etc.) to push questions.
-Use get_answer to retrieve responses.`;
+      return result;
     },
   };
 
