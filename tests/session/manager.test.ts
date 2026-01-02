@@ -6,7 +6,7 @@ describe("SessionManager", () => {
   let manager: SessionManager;
 
   beforeEach(() => {
-    manager = new SessionManager();
+    manager = new SessionManager({ skipBrowser: true });
   });
 
   afterEach(async () => {

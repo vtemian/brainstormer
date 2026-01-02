@@ -8,7 +8,7 @@ describe("Session Tools", () => {
   let tools: ReturnType<typeof createSessionTools>;
 
   beforeEach(() => {
-    manager = new SessionManager();
+    manager = new SessionManager({ skipBrowser: true });
     tools = createSessionTools(manager);
   });
 

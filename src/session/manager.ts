@@ -27,10 +27,20 @@ function generateId(prefix: string): string {
   return result;
 }
 
+export interface SessionManagerOptions {
+  /** Skip opening browser - useful for tests */
+  skipBrowser?: boolean;
+}
+
 export class SessionManager {
   private sessions: Map<string, Session> = new Map();
   private questionToSession: Map<string, string> = new Map();
   private responseWaiters: Map<string, Array<(response: unknown) => void>> = new Map();
+  private options: SessionManagerOptions;
+
+  constructor(options: SessionManagerOptions = {}) {
+    this.options = options;
+  }
 
   async startSession(input: StartSessionInput): Promise<StartSessionOutput> {
     const sessionId = generateId("ses");
@@ -53,8 +63,10 @@ export class SessionManager {
 
     this.sessions.set(sessionId, session);
 
-    // Open browser
-    await openBrowser(url);
+    // Open browser (unless skipped for tests)
+    if (!this.options.skipBrowser) {
+      await openBrowser(url);
+    }
 
     return {
       session_id: sessionId,
@@ -89,11 +101,7 @@ export class SessionManager {
     return { ok: true };
   }
 
-  pushQuestion(
-    sessionId: string,
-    type: QuestionType,
-    config: QuestionConfig,
-  ): PushQuestionOutput {
+  pushQuestion(sessionId: string, type: QuestionType, config: QuestionConfig): PushQuestionOutput {
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw new Error(`Session not found: ${sessionId}`);
@@ -122,7 +130,7 @@ export class SessionManager {
         config,
       };
       session.wsClient.send(JSON.stringify(msg));
-    } else {
+    } else if (!this.options.skipBrowser) {
       // Re-open browser if not connected
       openBrowser(session.url).catch(console.error);
     }
@@ -205,7 +213,7 @@ export class SessionManager {
 
       const waiterCallback = (response: unknown) => {
         clearTimeout(timeoutId);
-        if (response && typeof response === 'object' && 'cancelled' in response) {
+        if (response && typeof response === "object" && "cancelled" in response) {
           resolve({
             completed: false,
             status: "cancelled",
@@ -282,9 +290,7 @@ export class SessionManager {
     }
 
     // Sort by creation time, newest first
-    questions.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    questions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     return { questions };
   }
