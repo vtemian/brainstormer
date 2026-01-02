@@ -30,10 +30,10 @@ Add to your OpenCode config:
 
 ## Usage
 
-Invoke the brainstormer agent:
+Select the brainstormer agent in OpenCode (it's a primary agent), then describe your idea:
 
 ```
-/brainstormer I want to add a caching layer to the API
+I want to add a caching layer to the API
 ```
 
 The agent will:
