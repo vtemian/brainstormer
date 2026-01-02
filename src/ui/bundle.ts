@@ -14,6 +14,7 @@ export function getHtmlBundle(): string {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --background: #ffffff;
@@ -360,9 +361,56 @@ export function getHtmlBundle(): string {
       margin-bottom: 1rem;
       font-size: 0.875rem;
       line-height: 1.6;
-      white-space: pre-wrap;
       max-height: 400px;
       overflow-y: auto;
+    }
+
+    .review-content h1, .review-content h2, .review-content h3,
+    .review-content h4, .review-content h5, .review-content h6 {
+      font-weight: 600;
+      margin: 1rem 0 0.5rem 0;
+    }
+
+    .review-content h1 { font-size: 1.25rem; }
+    .review-content h2 { font-size: 1.125rem; }
+    .review-content h3 { font-size: 1rem; }
+
+    .review-content p {
+      margin: 0.5rem 0;
+    }
+
+    .review-content ul, .review-content ol {
+      margin: 0.5rem 0;
+      padding-left: 1.5rem;
+    }
+
+    .review-content li {
+      margin: 0.25rem 0;
+    }
+
+    .review-content code {
+      background: var(--surface-hover);
+      padding: 0.125rem 0.25rem;
+      font-size: 0.8125rem;
+    }
+
+    .review-content pre {
+      background: var(--surface-hover);
+      padding: 0.75rem;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+    }
+
+    .review-content pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .review-content blockquote {
+      border-left: 2px solid var(--border);
+      padding-left: 1rem;
+      margin: 0.5rem 0;
+      color: var(--foreground-muted);
     }
 
     .feedback-input {
@@ -618,7 +666,9 @@ export function getHtmlBundle(): string {
       if (q.config.context) {
         html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
       }
-      html += '<div class="review-content">' + escapeHtml(q.config.content || '') + '</div>';
+      // Render markdown content
+      const markdownHtml = typeof marked !== 'undefined' ? marked.parse(q.config.content || '') : escapeHtml(q.config.content || '');
+      html += '<div class="review-content">' + markdownHtml + '</div>';
       html += '<div class="feedback-input">';
       html += '<label for="feedback_' + q.id + '">Feedback (optional)</label>';
       html += '<textarea id="feedback_' + q.id + '" class="textarea" rows="3" placeholder="Any suggestions or changes..."></textarea>';
