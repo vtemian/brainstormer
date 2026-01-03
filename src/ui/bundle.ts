@@ -119,9 +119,71 @@ export function getHtmlBundle(): string {
       border-color: var(--border-subtle);
       opacity: 0.7;
       padding: 1rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .card-answered:hover {
+      opacity: 0.85;
+    }
+
+    .card-answered.expanded {
+      opacity: 1;
+      cursor: default;
     }
 
     .card-answered .check {
+      color: var(--accent-success);
+      margin-right: 0.5rem;
+    }
+
+    .card-answered-header {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .card-answered-header .toggle {
+      margin-left: auto;
+      color: var(--foreground-subtle);
+      font-size: 0.75rem;
+    }
+
+    .card-answered-body {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .readonly-answer {
+      background: var(--surface-hover);
+      padding: 0.75rem;
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .readonly-answer-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--foreground-subtle);
+      margin-bottom: 0.25rem;
+    }
+
+    .readonly-option {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 0.25rem;
+      opacity: 0.6;
+    }
+
+    .readonly-option.selected {
+      opacity: 1;
+      border-color: var(--accent-success);
+      background: rgba(0, 170, 0, 0.05);
+    }
+
+    .readonly-option .check-mark {
       color: var(--accent-success);
       margin-right: 0.5rem;
     }
@@ -654,6 +716,7 @@ export function getHtmlBundle(): string {
     const wsUrl = 'ws://' + window.location.host + '/ws';
     let ws = null;
     let questions = [];
+    let expandedAnswers = new Set();
     
     function connect() {
       ws = new WebSocket(wsUrl);
@@ -699,11 +762,20 @@ export function getHtmlBundle(): string {
       
       let html = '';
       
-      // Show answered questions (collapsed)
+      // Show answered questions (collapsed or expanded)
       for (const q of answered) {
-        html += '<div class="card card-answered">';
+        const isExpanded = expandedAnswers.has(q.id);
+        html += '<div class="card card-answered' + (isExpanded ? ' expanded' : '') + '" data-qid="' + q.id + '">';
+        html += '<div class="card-answered-header" onclick="toggleAnswered(\\'' + q.id + '\\')">';
         html += '<span class="check">[OK]</span>';
         html += '<span>' + escapeHtml(q.config.question) + '</span>';
+        html += '<span class="toggle">' + (isExpanded ? '▲ collapse' : '▼ view') + '</span>';
+        html += '</div>';
+        if (isExpanded) {
+          html += '<div class="card-answered-body">';
+          html += renderAnsweredQuestion(q);
+          html += '</div>';
+        }
         html += '</div>';
       }
       
@@ -1086,6 +1158,7 @@ export function getHtmlBundle(): string {
       const q = questions.find(q => q.id === questionId);
       if (q) {
         q.answered = true;
+        q.answer = answer;  // Store answer for read-only view
         ws.send(JSON.stringify({ type: 'response', id: questionId, answer }));
         render();
       }
@@ -1252,6 +1325,233 @@ export function getHtmlBundle(): string {
         });
       }
     });
+    
+    function toggleAnswered(questionId) {
+      if (expandedAnswers.has(questionId)) {
+        expandedAnswers.delete(questionId);
+      } else {
+        expandedAnswers.add(questionId);
+      }
+      render();
+    }
+    
+    function renderAnsweredQuestion(q) {
+      const config = q.config;
+      const answer = q.answer || {};
+      let html = '';
+      
+      switch (q.questionType) {
+        case 'pick_one':
+          html += renderAnsweredPickOne(q, answer);
+          break;
+        case 'pick_many':
+          html += renderAnsweredPickMany(q, answer);
+          break;
+        case 'confirm':
+          html += renderAnsweredConfirm(q, answer);
+          break;
+        case 'ask_text':
+          html += renderAnsweredText(q, answer);
+          break;
+        case 'thumbs':
+          html += renderAnsweredThumbs(q, answer);
+          break;
+        case 'slider':
+          html += renderAnsweredSlider(q, answer);
+          break;
+        case 'review_section':
+        case 'show_plan':
+          html += renderAnsweredReview(q, answer);
+          break;
+        case 'show_options':
+          html += renderAnsweredShowOptions(q, answer);
+          break;
+        case 'show_diff':
+          html += renderAnsweredDiff(q, answer);
+          break;
+        case 'rank':
+          html += renderAnsweredRank(q, answer);
+          break;
+        case 'rate':
+          html += renderAnsweredRate(q, answer);
+          break;
+        case 'ask_code':
+          html += renderAnsweredCode(q, answer);
+          break;
+        case 'ask_image':
+        case 'ask_file':
+          html += renderAnsweredFile(q, answer);
+          break;
+        case 'emoji_react':
+          html += renderAnsweredEmoji(q, answer);
+          break;
+        default:
+          html += '<div class="readonly-answer"><pre>' + escapeHtml(JSON.stringify(answer, null, 2)) + '</pre></div>';
+      }
+      
+      return html;
+    }
+    
+    function renderAnsweredPickOne(q, answer) {
+      const options = q.config.options || [];
+      let html = '<div class="options">';
+      for (const opt of options) {
+        const isSelected = answer.selected === opt.id;
+        html += '<div class="readonly-option' + (isSelected ? ' selected' : '') + '">';
+        if (isSelected) html += '<span class="check-mark">✓</span>';
+        html += '<span>' + escapeHtml(opt.label) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredPickMany(q, answer) {
+      const options = q.config.options || [];
+      const selected = answer.selected || [];
+      let html = '<div class="options">';
+      for (const opt of options) {
+        const isSelected = selected.includes(opt.id);
+        html += '<div class="readonly-option' + (isSelected ? ' selected' : '') + '">';
+        if (isSelected) html += '<span class="check-mark">✓</span>';
+        html += '<span>' + escapeHtml(opt.label) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredConfirm(q, answer) {
+      const choice = answer.choice;
+      const labels = { yes: q.config.yesLabel || 'Yes', no: q.config.noLabel || 'No', cancel: 'Cancel' };
+      let html = '<div class="readonly-answer">';
+      html += '<div class="readonly-answer-label">Answer</div>';
+      html += '<strong>' + escapeHtml(labels[choice] || choice) + '</strong>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredText(q, answer) {
+      let html = '<div class="readonly-answer">';
+      html += '<div class="readonly-answer-label">Response</div>';
+      html += '<div>' + escapeHtml(answer.text || '') + '</div>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredThumbs(q, answer) {
+      const emoji = answer.choice === 'up' ? '👍' : '👎';
+      let html = '<div class="readonly-answer">';
+      html += '<span style="font-size: 2rem;">' + emoji + '</span>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredSlider(q, answer) {
+      let html = '<div class="readonly-answer">';
+      html += '<div class="readonly-answer-label">Value</div>';
+      html += '<strong style="font-size: 1.25rem;">' + answer.value + '</strong>';
+      html += ' <span style="color: var(--foreground-subtle);">(range: ' + q.config.min + ' - ' + q.config.max + ')</span>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredReview(q, answer) {
+      let html = '<div class="readonly-answer">';
+      html += '<div class="readonly-answer-label">Decision</div>';
+      html += '<strong>' + (answer.decision === 'approve' ? '✓ Approved' : '✗ Needs Revision') + '</strong>';
+      if (answer.feedback) {
+        html += '<div style="margin-top: 0.5rem;"><em>Feedback:</em> ' + escapeHtml(answer.feedback) + '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredShowOptions(q, answer) {
+      const options = q.config.options || [];
+      let html = '<div class="options">';
+      for (const opt of options) {
+        const isSelected = answer.selected === opt.id;
+        html += '<div class="readonly-option' + (isSelected ? ' selected' : '') + '">';
+        if (isSelected) html += '<span class="check-mark">✓</span>';
+        html += '<span>' + escapeHtml(opt.label) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+      if (answer.feedback) {
+        html += '<div class="readonly-answer"><div class="readonly-answer-label">Feedback</div>' + escapeHtml(answer.feedback) + '</div>';
+      }
+      return html;
+    }
+    
+    function renderAnsweredDiff(q, answer) {
+      let html = '<div class="readonly-answer">';
+      html += '<div class="readonly-answer-label">Decision</div>';
+      const decisions = { approve: '✓ Approved', reject: '✗ Rejected', edit: '✎ Edit Requested' };
+      html += '<strong>' + (decisions[answer.decision] || answer.decision) + '</strong>';
+      if (answer.feedback) {
+        html += '<div style="margin-top: 0.5rem;"><em>Comments:</em> ' + escapeHtml(answer.feedback) + '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredRank(q, answer) {
+      const ranking = answer.ranking || [];
+      let html = '<div class="readonly-answer-label">Final Ranking</div>';
+      html += '<div class="options">';
+      for (const item of ranking) {
+        const opt = (q.config.options || []).find(o => o.id === item.id);
+        html += '<div class="readonly-option selected">';
+        html += '<strong>' + item.rank + '.</strong> ' + escapeHtml(opt ? opt.label : item.id);
+        html += '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredRate(q, answer) {
+      const ratings = answer.ratings || {};
+      let html = '<div class="readonly-answer-label">Ratings</div>';
+      html += '<div class="options">';
+      for (const opt of (q.config.options || [])) {
+        const rating = ratings[opt.id];
+        html += '<div class="readonly-option' + (rating ? ' selected' : '') + '">';
+        html += '<span>' + escapeHtml(opt.label) + '</span>';
+        html += ' <strong style="margin-left: auto;">' + (rating || '-') + '</strong>';
+        html += '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredCode(q, answer) {
+      let html = '<div class="readonly-answer">';
+      html += '<div class="readonly-answer-label">Code (' + escapeHtml(q.config.language || 'plaintext') + ')</div>';
+      html += '<pre style="margin: 0; white-space: pre-wrap;"><code>' + escapeHtml(answer.code || '') + '</code></pre>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredFile(q, answer) {
+      const files = answer.images || answer.files || [];
+      let html = '<div class="readonly-answer">';
+      html += '<div class="readonly-answer-label">Uploaded ' + files.length + ' file(s)</div>';
+      html += '<ul style="margin: 0.5rem 0 0 1rem;">';
+      for (const f of files) {
+        html += '<li>' + escapeHtml(f.name) + '</li>';
+      }
+      html += '</ul>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderAnsweredEmoji(q, answer) {
+      let html = '<div class="readonly-answer">';
+      html += '<span style="font-size: 2rem;">' + (answer.emoji || '') + '</span>';
+      html += '</div>';
+      return html;
+    }
     
     function escapeHtml(text) {
       const div = document.createElement('div');
