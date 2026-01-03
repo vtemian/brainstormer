@@ -130,4 +130,19 @@ describe("SessionManager", () => {
       expect(result.questions.length).toBe(1);
     });
   });
+
+  describe("getNextAnswer", () => {
+    it("should timeout when blocking with no answers", async () => {
+      const { session_id } = await manager.startSession({});
+      manager.pushQuestion(session_id, "confirm", { question: "Test?" });
+
+      const startTime = Date.now();
+      const result = await manager.getNextAnswer({ session_id, block: true, timeout: 100 });
+      const elapsed = Date.now() - startTime;
+
+      expect(result.completed).toBe(false);
+      expect(result.status).toBe("timeout");
+      expect(elapsed).toBeGreaterThanOrEqual(100);
+    });
+  });
 });

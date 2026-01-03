@@ -701,6 +701,15 @@ export function getHtmlBundle(): string {
       background: var(--surface-hover);
       border-color: var(--border);
     }
+
+    /* Keyboard focus styles */
+    .thumb-btn:focus,
+    .emoji-btn:focus,
+    .rate-star:focus,
+    .btn:focus {
+      outline: 2px solid var(--foreground);
+      outline-offset: 2px;
+    }
   </style>
 </head>
 <body>
@@ -1164,11 +1173,28 @@ export function getHtmlBundle(): string {
       }
     }
     
+    function showError(questionId, message) {
+      const existingError = document.getElementById('error_' + questionId);
+      if (existingError) existingError.remove();
+      
+      const card = document.querySelector('[data-qid="' + questionId + '"]') || document.querySelector('.card:not(.card-answered)');
+      if (card) {
+        const errorDiv = document.createElement('div');
+        errorDiv.id = 'error_' + questionId;
+        errorDiv.style.cssText = 'color: var(--accent-error); font-size: 0.875rem; margin-top: 0.5rem;';
+        errorDiv.textContent = message;
+        const btnGroup = card.querySelector('.btn-group');
+        if (btnGroup) btnGroup.before(errorDiv);
+      }
+    }
+    
     function submitPickOne(questionId) {
       const selected = document.querySelector('input[name="pick_' + questionId + '"]:checked');
-      if (selected) {
-        submitAnswer(questionId, { selected: selected.value });
+      if (!selected) {
+        showError(questionId, 'Please select an option');
+        return;
       }
+      submitAnswer(questionId, { selected: selected.value });
     }
     
     function submitPickMany(questionId) {
@@ -1198,11 +1224,13 @@ export function getHtmlBundle(): string {
     
     function submitShowOptions(questionId) {
       const selected = document.querySelector('input[name="opt_' + questionId + '"]:checked');
-      if (selected) {
-        const feedbackEl = document.getElementById('feedback_' + questionId);
-        const feedback = feedbackEl ? feedbackEl.value : '';
-        submitAnswer(questionId, { selected: selected.value, feedback: feedback || undefined });
+      if (!selected) {
+        showError(questionId, 'Please select an option');
+        return;
       }
+      const feedbackEl = document.getElementById('feedback_' + questionId);
+      const feedback = feedbackEl ? feedbackEl.value : '';
+      submitAnswer(questionId, { selected: selected.value, feedback: feedback || undefined });
     }
     
     function submitDiff(questionId, decision) {

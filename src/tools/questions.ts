@@ -3,17 +3,6 @@ import { tool } from "@opencode-ai/plugin/tool";
 import type { SessionManager } from "../session/manager";
 import type { PickOneConfig, PickManyConfig, ConfirmConfig, RankConfig, RateConfig } from "../types";
 
-// Helper to get active session ID (assumes single session for now)
-function getActiveSessionId(manager: SessionManager): string {
-  const sessions = manager.listQuestions();
-  if (sessions.questions.length === 0) {
-    throw new Error("No active session. Call start_session first.");
-  }
-  // Get session from first question, or we need to track active session
-  // For now, we'll require session_id in each call
-  throw new Error("session_id is required");
-}
-
 export function createQuestionTools(manager: SessionManager) {
   const pick_one = tool({
     description: `Ask user to select ONE option from a list.
@@ -505,6 +494,9 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
     },
     execute: async (args) => {
       try {
+        if (args.min >= args.max) {
+          return `Failed: min (${args.min}) must be less than max (${args.max})`;
+        }
         const config = {
           question: args.question,
           min: args.min,
