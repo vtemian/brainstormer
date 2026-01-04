@@ -10,6 +10,12 @@ export interface QAPair {
   config: unknown;
 }
 
+export interface PendingQuestion {
+  questionNumber: number;
+  questionType: QuestionType;
+  questionText: string;
+}
+
 /**
  * Formats a single answer based on question type.
  * Maps response objects to human-readable summaries.
@@ -109,20 +115,31 @@ export function formatAnswer(questionType: QuestionType, answer: unknown, config
 
 /**
  * Builds the full context string for the probe agent.
+ * Includes answered questions and optionally pending questions.
  */
-export function buildProbeContext(originalRequest: string, qaPairs: QAPair[]): string {
+export function buildProbeContext(
+  originalRequest: string,
+  qaPairs: QAPair[],
+  pendingQuestions: PendingQuestion[] = [],
+): string {
   let context = `ORIGINAL REQUEST:\n${originalRequest}\n\n`;
 
   if (qaPairs.length === 0) {
-    context += "CONVERSATION:\n(No questions answered yet)";
-    return context;
+    context += "CONVERSATION:\n(No questions answered yet)\n";
+  } else {
+    context += "CONVERSATION:\n";
+    for (const qa of qaPairs) {
+      const formattedAnswer = formatAnswer(qa.questionType, qa.answer, qa.config);
+      context += `Q${qa.questionNumber} [${qa.questionType}]: ${qa.questionText}\n`;
+      context += `A${qa.questionNumber}: ${formattedAnswer}\n\n`;
+    }
   }
 
-  context += "CONVERSATION:\n";
-  for (const qa of qaPairs) {
-    const formattedAnswer = formatAnswer(qa.questionType, qa.answer, qa.config);
-    context += `Q${qa.questionNumber} [${qa.questionType}]: ${qa.questionText}\n`;
-    context += `A${qa.questionNumber}: ${formattedAnswer}\n\n`;
+  if (pendingQuestions.length > 0) {
+    context += "\nPENDING QUESTIONS:\n";
+    for (const pq of pendingQuestions) {
+      context += `Q${pq.questionNumber} [${pq.questionType}]: ${pq.questionText}\n`;
+    }
   }
 
   return context.trim();
