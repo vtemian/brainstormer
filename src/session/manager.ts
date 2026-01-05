@@ -19,6 +19,7 @@ import type {
 } from "./types";
 import { openBrowser } from "./browser";
 import { createServer } from "./server";
+import { DEFAULT_ANSWER_TIMEOUT_MS } from "../constants";
 
 function generateId(prefix: string): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -218,7 +219,7 @@ export class SessionManager {
     }
 
     // Blocking: wait for response
-    const timeout = input.timeout ?? 300000; // 5 minutes default
+    const timeout = input.timeout ?? DEFAULT_ANSWER_TIMEOUT_MS;
 
     return new Promise<GetAnswerOutput>((resolve) => {
       const timeoutId = setTimeout(() => {
@@ -304,7 +305,7 @@ export class SessionManager {
     }
 
     // Blocking: wait for any response in this session
-    const timeout = input.timeout ?? 300000; // 5 minutes default
+    const timeout = input.timeout ?? DEFAULT_ANSWER_TIMEOUT_MS;
 
     return new Promise<GetNextAnswerOutput>((resolve) => {
       const timeoutId = setTimeout(() => {
