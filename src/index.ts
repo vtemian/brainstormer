@@ -189,10 +189,14 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
         }
 
         let context = sessionContexts.get(effectiveSessionId);
+        const isNewContext = !context;
         if (!context) {
           context = { title: "Brainstorming", questions: new Map(), questionOrder: [], awaitingApproval: false };
           sessionContexts.set(effectiveSessionId, context);
         }
+
+        // Track state for debugging
+        const answeredBefore = Array.from(context.questions.values()).filter(q => q.answer !== undefined).length;
 
         const questionIdMatch = output.output.match(/\*\*Question ID:\*\* (q_[a-z0-9]+)/);
         const responseMatch = output.output.match(/\*\*Response:\*\*\s*```json\s*([\s\S]*?)\s*```/);
@@ -403,7 +407,8 @@ ${output.output}
                 });
                 context.questionOrder.push(newId);
 
-                output.output += `\n\n## Probe Result\nNew question pushed. Call get_next_answer again.`;
+                const answeredAfter = Array.from(context.questions.values()).filter(q => q.answer !== undefined).length;
+                output.output += `\n\n## Probe Result\nNew question pushed. Call get_next_answer again.\n[Context: session=${effectiveSessionId}, new=${isNewContext}, answered=${answeredBefore}→${answeredAfter}, total=${context.questions.size}]`;
               } else {
                 probeResult.done = true;
                 probeResult.reason = "Enough information gathered";
