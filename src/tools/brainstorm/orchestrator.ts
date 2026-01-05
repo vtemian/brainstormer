@@ -30,6 +30,35 @@ export class BrainstormOrchestrator {
   }
 
   /**
+   * Push questions from probe response to session
+   * Returns number of questions pushed
+   */
+  private pushProbeQuestions(
+    probeResult: import("./types").ProbeResponseContinue,
+    sessionId: string,
+    questionTexts: Map<string, { text: string; type: string }>,
+    maxQ: number,
+    currentCount: number,
+  ): number {
+    let pushed = 0;
+    for (const question of probeResult.questions) {
+      if (currentCount + pushed >= maxQ) {
+        break;
+      }
+
+      const pushResult = this.sessionManager.pushQuestion(sessionId, question.type, question.config);
+
+      questionTexts.set(pushResult.question_id, {
+        text: this.extractQuestionText(question.config),
+        type: question.type,
+      });
+
+      pushed++;
+    }
+    return pushed;
+  }
+
+  /**
    * Run the complete brainstorming flow
    */
   async run(input: BrainstormInput): Promise<BrainstormOutput> {
@@ -64,7 +93,7 @@ export class BrainstormOrchestrator {
     }
 
     try {
-      // Main answer loop
+      // Main answer loop - sequential but with multi-question probe responses
       let questionCount = initial_questions.length;
       let done = false;
 
@@ -76,13 +105,12 @@ export class BrainstormOrchestrator {
           timeout: DEFAULT_ANSWER_TIMEOUT_MS,
         });
 
-        // Handle timeout or no pending questions
+        // Handle timeout or no pending
         if (!answerResult.completed) {
           if (answerResult.status === "timeout") {
             throw new BrainstormError("timeout", "Timed out waiting for user response");
           }
           if (answerResult.status === "none_pending") {
-            // All questions answered, check if we should continue
             break;
           }
           continue;
@@ -98,21 +126,19 @@ export class BrainstormOrchestrator {
           });
         }
 
-        // Check if we've hit max questions
+        // Check max before calling probe
         if (questionCount >= maxQ) {
-          done = true;
           break;
         }
 
-        // Call probe to decide next action
+        // Call probe to get next questions (can return 1-5)
         const probeResult = await callProbe(this.client, this.opencodeSessionId, request, answers, llmModel);
 
         if (probeResult.done) {
           done = true;
         } else {
-          // Push all new questions
+          // Push all questions from probe
           for (const question of probeResult.questions) {
-            // Check if we've hit max questions before pushing
             if (questionCount >= maxQ) {
               done = true;
               break;
