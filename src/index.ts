@@ -11,8 +11,8 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
   // Track which brainstormer sessions belong to which OpenCode sessions
   const sessionsByOpenCodeSession = new Map<string, Set<string>>();
 
-  // Create all tools with session tracking
-  const baseTools = createBrainstormerTools(sessionManager);
+  // Create all tools with session tracking (pass client for brainstorm tool)
+  const baseTools = createBrainstormerTools(sessionManager, ctx.client);
 
   // Wrap start_session to track ownership, but use original execute for enforcement
   const originalStartSession = baseTools.start_session;
@@ -45,7 +45,7 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
     },
 
     config: async (config) => {
-      // Add brainstormer agent
+      // Add brainstormer agent (kept for backward compatibility)
       config.agent = {
         ...config.agent,
         ...agents,
@@ -76,3 +76,4 @@ export default BrainstormerPlugin;
 
 // Re-export types for consumers
 export type * from "./types";
+export type * from "./tools/brainstorm/types";
