@@ -5,6 +5,83 @@ import { SessionManager } from "./session/manager";
 import { createBrainstormerTools } from "./tools";
 import { agents } from "./agents";
 
+interface ConversationEntry {
+  questionId: string;
+  questionText: string;
+  questionType: string;
+  answer: unknown;
+}
+
+interface SessionContext {
+  title: string;
+  originalRequest?: string;
+  conversation: ConversationEntry[];
+  questionCount: number;
+}
+
+/**
+ * Extract question text from an answer object (tries to find what was asked)
+ */
+function extractQuestionText(answer: unknown): string {
+  if (!answer || typeof answer !== "object") return "Unknown question";
+
+  const a = answer as Record<string, unknown>;
+
+  // For pick_one/pick_many, the selected value might give us context
+  if (a.selected) {
+    return `Choice: ${Array.isArray(a.selected) ? a.selected.join(", ") : a.selected}`;
+  }
+  if (a.text) {
+    return `Text input`;
+  }
+  if (a.choice) {
+    return `Confirmation`;
+  }
+
+  return "Question";
+}
+
+/**
+ * Format an answer for the probe context
+ */
+function formatAnswerForProbe(type: string, answer: unknown): string {
+  if (!answer || typeof answer !== "object") return String(answer);
+
+  const a = answer as Record<string, unknown>;
+
+  switch (type) {
+    case "pick_one":
+      if (a.other) return `Selected "other": "${a.other}"`;
+      return `Selected "${a.selected}"`;
+
+    case "pick_many": {
+      const selected = Array.isArray(a.selected) ? a.selected.join('", "') : a.selected;
+      const other = Array.isArray(a.other) && a.other.length ? ` (also: "${a.other.join('", "')}")` : "";
+      return `Selected: "${selected}"${other}`;
+    }
+
+    case "confirm":
+      return `Said ${a.choice}`;
+
+    case "ask_text":
+      return `Wrote: "${a.text}"`;
+
+    case "show_options": {
+      const feedback = a.feedback ? ` (feedback: "${a.feedback}")` : "";
+      return `Chose "${a.selected}"${feedback}`;
+    }
+
+    case "thumbs":
+      return `Gave thumbs ${a.choice}`;
+
+    case "slider":
+      return `Set value to ${a.value}`;
+
+    default:
+      return JSON.stringify(answer);
+  }
+}
+
 const BrainstormerPlugin: Plugin = async (ctx) => {
   // Create session manager
   const sessionManager = new SessionManager();
@@ -12,29 +89,49 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
   // Track which brainstormer sessions belong to which OpenCode sessions
   const sessionsByOpenCodeSession = new Map<string, Set<string>>();
 
+  // Track full conversation context per brainstorm session
+  const sessionContexts = new Map<string, SessionContext>();
+
   // Create all tools with session tracking (pass client for brainstorm tool)
   const baseTools = createBrainstormerTools(sessionManager, ctx.client);
 
-  // Wrap start_session to track ownership, but use original execute for enforcement
+  // Access client for programmatic subagent calls
+  const client = ctx.client;
+
+  // Wrap start_session to track ownership and initialize context
   const originalStartSession = baseTools.start_session;
   const wrappedStartSession = {
     ...originalStartSession,
     execute: async (args: Record<string, unknown>, toolCtx: ToolContext) => {
       // Call original execute (which has enforcement)
-      // Cast args to match original execute signature - validated by zod schema at runtime
       type StartSessionArgs = Parameters<typeof originalStartSession.execute>[0];
       const result = await originalStartSession.execute(args as StartSessionArgs, toolCtx);
 
-      // If successful, track the session
+      // If successful, track the session and initialize context
       const sessionIdMatch = result.match(/ses_[a-z0-9]+/);
       if (sessionIdMatch) {
+        const brainstormSessionId = sessionIdMatch[0];
         const openCodeSessionId = toolCtx.sessionID;
+
+        // Track OpenCode session ownership
         if (openCodeSessionId) {
           if (!sessionsByOpenCodeSession.has(openCodeSessionId)) {
             sessionsByOpenCodeSession.set(openCodeSessionId, new Set());
           }
-          sessionsByOpenCodeSession.get(openCodeSessionId)!.add(sessionIdMatch[0]);
+          sessionsByOpenCodeSession.get(openCodeSessionId)!.add(brainstormSessionId);
         }
+
+        // Initialize conversation context
+        const typedArgs = args as { title?: string; questions?: Array<{ type: string; config: { question?: string } }> };
+        const initialQuestionCount = typedArgs.questions?.length || 0;
+
+        sessionContexts.set(brainstormSessionId, {
+          title: typedArgs.title || "Brainstorming Session",
+          conversation: [],
+          questionCount: initialQuestionCount,
+        });
+
+        console.log(`[brainstormer] Initialized context for ${brainstormSessionId} with ${initialQuestionCount} initial questions`);
       }
 
       return result;
@@ -73,30 +170,210 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
       }
     },
 
-    // Hook to inject probe reminder after get_next_answer returns an answer
+    // Hook to trigger probe after get_next_answer returns an answer
     "tool.execute.after": async (input, output) => {
-      if (input.tool === "get_next_answer") {
-        // Check if we got an actual answer (not timeout/cancelled)
-        if (output.output.includes('"completed": true') || output.output.includes('"status": "answered"')) {
-          // Inject a STRONG reminder to call probe
-          output.output += `
+      console.log(`[brainstormer-hook] tool.execute.after called for tool: ${input.tool}`);
 
-<CRITICAL-ACTION-REQUIRED>
-╔════════════════════════════════════════════════════════════════════╗
-║  YOU MUST IMMEDIATELY SPAWN THE PROBE SUBAGENT NOW!                ║
-║                                                                    ║
-║  DO THIS RIGHT NOW:                                                ║
-║  background_task(                                                  ║
-║    agent="probe",                                                  ║
-║    description="Generate follow-up questions",                     ║
-║    prompt="<context with all Q&As so far>"                        ║
-║  )                                                                 ║
-║                                                                    ║
-║  Then wait for probe result with background_output(task_id, true)  ║
-║  If probe returns done:false, push the new questions               ║
-║  If probe returns done:true, call end_session                      ║
-╚════════════════════════════════════════════════════════════════════╝
-</CRITICAL-ACTION-REQUIRED>`;
+      if (input.tool === "get_next_answer") {
+        console.log(`[brainstormer-hook] get_next_answer output:`, output.output.substring(0, 200));
+
+        // Check if we got an actual answer (not timeout/cancelled)
+        const hasAnswer = output.output.includes('"completed": true') ||
+                          output.output.includes('"status": "answered"') ||
+                          output.output.includes('## Answer Received');
+
+        console.log(`[brainstormer-hook] hasAnswer: ${hasAnswer}`);
+
+        if (hasAnswer) {
+          console.log(`[brainstormer-hook] TRIGGERING PROBE PROGRAMMATICALLY`);
+
+          try {
+            // Extract session_id from the output
+            const sessionIdMatch = output.output.match(/ses_[a-z0-9]+/);
+            const brainstormSessionId = sessionIdMatch?.[0];
+
+            // Fallback to any tracked session
+            const trackedSessions = Array.from(sessionsByOpenCodeSession.values()).flatMap((s) => Array.from(s));
+            const fallbackSessionId = trackedSessions[0];
+            const effectiveSessionId = brainstormSessionId || fallbackSessionId;
+
+            console.log(`[brainstormer-hook] Session ID: ${effectiveSessionId}`);
+
+            if (effectiveSessionId && client) {
+              // Get or create session context
+              let context = sessionContexts.get(effectiveSessionId);
+              if (!context) {
+                context = { title: "Brainstorming", conversation: [], questionCount: 0 };
+                sessionContexts.set(effectiveSessionId, context);
+              }
+
+              // Extract Q&A from output and add to conversation
+              const questionIdMatch = output.output.match(/\*\*Question ID:\*\* (q_[a-z0-9]+)/);
+              const questionTypeMatch = output.output.match(/\*\*Question Type:\*\* (\w+)/);
+              const responseMatch = output.output.match(/\*\*Response:\*\*\s*```json\s*([\s\S]*?)\s*```/);
+
+              if (questionIdMatch && responseMatch) {
+                try {
+                  const answer = JSON.parse(responseMatch[1]);
+                  context.conversation.push({
+                    questionId: questionIdMatch[1],
+                    questionText: extractQuestionText(answer),
+                    questionType: questionTypeMatch?.[1] || "unknown",
+                    answer,
+                  });
+                  console.log(`[brainstormer-hook] Added Q&A to context. Total: ${context.conversation.length}`);
+                } catch {
+                  console.log(`[brainstormer-hook] Could not parse answer JSON`);
+                }
+              }
+
+              console.log(`[brainstormer-hook] Creating probe session...`);
+
+              const probeSession = await client.session.create({
+                body: { title: "Probe Session" },
+              });
+
+              if (probeSession.data?.id) {
+                console.log(`[brainstormer-hook] Probe session created: ${probeSession.data.id}`);
+
+                // Build full conversation history for probe
+                const conversationHistory = context.conversation.map((entry, i) => {
+                  const answerText = formatAnswerForProbe(entry.questionType, entry.answer);
+                  return `Q${i + 1} [${entry.questionType}]: ${entry.questionText}\nA${i + 1}: ${answerText}`;
+                }).join("\n\n");
+
+                const totalQuestions = context.questionCount + context.conversation.length;
+
+                const probePrompt = `<role>You are a brainstorming probe that helps refine ideas into actionable designs.</role>
+
+<task>Analyze the conversation and decide: generate follow-up questions OR mark design as complete.</task>
+
+<output-format>
+Return ONLY valid JSON. No markdown, no explanations.
+
+If more questions needed:
+{"done": false, "reason": "what aspect needs exploration", "questions": [{"type": "pick_one", "config": {"question": "...", "options": [{"id": "a", "label": "..."}, {"id": "b", "label": "..."}]}}]}
+
+If design is complete:
+{"done": true, "reason": "summary of what was decided"}
+</output-format>
+
+<question-types>
+- pick_one: Single choice. config: {question, options: [{id, label}], recommended?: id}
+- pick_many: Multiple choice. config: {question, options: [{id, label}], min?, max?}
+- confirm: Yes/No. config: {question, context?}
+- ask_text: Free text. config: {question, placeholder?, multiline?}
+- show_options: Choices with pros/cons. config: {question, options: [{id, label, pros?: [], cons?: []}], recommended?}
+</question-types>
+
+<question-quality>
+Good questions:
+- Dig deeper into specifics, not broader topics
+- Build on previous answers
+- Clarify ambiguity or tradeoffs
+- Focus on constraints, requirements, edge cases
+
+Bad questions:
+- Repeating what was already asked
+- Too generic ("What else?")
+- Unrelated to the design goal
+</question-quality>
+
+<completeness-criteria>
+Mark done:true when ALL of these are clear:
+1. Core problem/goal is understood
+2. Key requirements are identified
+3. Main technical approach is decided
+4. Critical constraints are known
+5. At least 6-8 meaningful Q&As have occurred
+
+Do NOT end just because you've asked many questions - end when the design is ACTUALLY clear.
+</completeness-criteria>
+
+<session-info>
+Title: ${context.title}
+Questions asked so far: ${totalQuestions}
+</session-info>
+
+<conversation-history>
+${conversationHistory || "(First question being answered)"}
+</conversation-history>
+
+<latest-answer>
+${output.output}
+</latest-answer>`;
+
+                console.log(`[brainstormer-hook] Calling probe...`);
+
+                // Try to call probe - this might deadlock but let's see
+                const probeResponse = await client.session.prompt({
+                  path: { id: probeSession.data.id },
+                  body: {
+                    parts: [{ type: "text", text: probePrompt }],
+                    model: { providerID: "anthropic", modelID: "claude-opus-4-5" },
+                  },
+                });
+
+                console.log(`[brainstormer-hook] Probe responded!`);
+
+                if (probeResponse.data?.parts) {
+                  // Extract text from parts
+                  let probeText = "";
+                  for (const p of probeResponse.data.parts) {
+                    if (p.type === "text" && "text" in p) {
+                      probeText += (p as { text: string }).text;
+                    }
+                  }
+
+                  console.log(`[brainstormer-hook] Probe result: ${probeText.substring(0, 200)}`);
+
+                  // Parse probe response and push questions
+                  try {
+                    // Extract JSON from response - handle markdown blocks and extra text
+                    let jsonStr = probeText;
+
+                    // Remove markdown code blocks
+                    jsonStr = jsonStr.replace(/```json\n?/g, "").replace(/```\n?/g, "");
+
+                    // Try to find JSON object in the text
+                    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      jsonStr = jsonMatch[0];
+                    }
+
+                    console.log(`[brainstormer-hook] Extracted JSON: ${jsonStr.substring(0, 200)}`);
+
+                    const probeResult = JSON.parse(jsonStr.trim());
+
+                    if (!probeResult.done && probeResult.questions) {
+                      console.log(`[brainstormer-hook] Pushing ${probeResult.questions.length} questions`);
+
+                      for (const q of probeResult.questions) {
+                        sessionManager.pushQuestion(effectiveSessionId, q.type, q.config);
+                      }
+
+                      output.output += `\n\n## Probe Result\n${probeResult.questions.length} new questions pushed. Call get_next_answer again.`;
+                    } else {
+                      output.output += `\n\n## Probe Result\nBrainstorming complete! Reason: ${probeResult.reason || "Design is complete"}`;
+                    }
+                  } catch (parseErr) {
+                    console.log(`[brainstormer-hook] Failed to parse probe response: ${parseErr}`);
+                    output.output += `\n\n## Probe Error\nFailed to parse probe response. Agent should call probe subagent manually.`;
+                  }
+                }
+
+                // Cleanup probe session
+                await client.session.delete({ path: { id: probeSession.data.id } }).catch(() => {});
+              }
+            } else {
+              console.log(`[brainstormer-hook] No session ID found, cannot trigger probe`);
+              output.output += `\n\n<PROBE-REQUIRED>Call probe subagent now!</PROBE-REQUIRED>`;
+            }
+          } catch (err) {
+            console.log(`[brainstormer-hook] Error triggering probe: ${err}`);
+            // Fall back to reminder
+            output.output += `\n\n<PROBE-REQUIRED>Call probe subagent now!</PROBE-REQUIRED>`;
+          }
         }
       }
     },

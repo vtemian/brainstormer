@@ -42,13 +42,14 @@ describe("BrainstormerPlugin", () => {
       expect(result.tool!.start_session.execute).toBeDefined();
     });
 
-    it("should include brainstorm tool", async () => {
+    it("should include push_question tool", async () => {
       const { default: plugin } = await import("../src/index");
 
       const result = await plugin(createMockContext());
 
-      expect(result.tool!.brainstorm).toBeDefined();
-      expect(result.tool!.brainstorm.execute).toBeDefined();
+      // brainstorm tool removed (caused deadlock), use push_question instead
+      expect(result.tool!.push_question).toBeDefined();
+      expect(result.tool!.push_question.execute).toBeDefined();
     });
 
     it("should include event handler", async () => {
