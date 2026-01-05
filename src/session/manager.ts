@@ -20,6 +20,7 @@ import type {
 import { openBrowser } from "./browser";
 import { createServer } from "./server";
 import { DEFAULT_ANSWER_TIMEOUT_MS } from "../constants";
+import { WaiterManager } from "./waiter";
 
 function generateId(prefix: string): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -38,9 +39,10 @@ export interface SessionManagerOptions {
 export class SessionManager {
   private sessions: Map<string, Session> = new Map();
   private questionToSession: Map<string, string> = new Map();
-  private responseWaiters: Map<string, Array<(response: unknown) => void>> = new Map();
-  // Session-level waiters for "any answer" - used by getNextAnswer
-  private sessionWaiters: Map<string, Array<(questionId: string, response: unknown) => void>> = new Map();
+  // Question-level waiters - keyed by question_id
+  private responseWaiters = new WaiterManager<string, unknown>();
+  // Session-level waiters for "any answer" - keyed by session_id
+  private sessionWaiters = new WaiterManager<string, { questionId: string; response: unknown }>();
   private options: SessionManagerOptions;
 
   constructor(options: SessionManagerOptions = {}) {
@@ -119,7 +121,7 @@ export class SessionManager {
     // Clean up question mappings
     for (const questionId of session.questions.keys()) {
       this.questionToSession.delete(questionId);
-      this.responseWaiters.delete(questionId);
+      this.responseWaiters.clearAll(questionId);
     }
 
     this.sessions.delete(sessionId);
@@ -222,22 +224,10 @@ export class SessionManager {
     const timeout = input.timeout ?? DEFAULT_ANSWER_TIMEOUT_MS;
 
     return new Promise<GetAnswerOutput>((resolve) => {
-      const timeoutId = setTimeout(() => {
-        // Remove waiter
-        const waiters = this.responseWaiters.get(input.question_id) || [];
-        const idx = waiters.indexOf(waiterCallback);
-        if (idx >= 0) waiters.splice(idx, 1);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-        question.status = "timeout";
-        resolve({
-          completed: false,
-          status: "timeout",
-          reason: "timeout",
-        });
-      }, timeout);
-
-      const waiterCallback = (response: unknown) => {
-        clearTimeout(timeoutId);
+      const cleanup = this.responseWaiters.registerWaiter(input.question_id, (response) => {
+        if (timeoutId) clearTimeout(timeoutId);
         if (response && typeof response === "object" && "cancelled" in response) {
           resolve({
             completed: false,
@@ -251,12 +241,18 @@ export class SessionManager {
             response,
           });
         }
-      };
+      });
 
-      // Register waiter
-      const waiters = this.responseWaiters.get(input.question_id) || [];
-      waiters.push(waiterCallback);
-      this.responseWaiters.set(input.question_id, waiters);
+      // Set timeout
+      timeoutId = setTimeout(() => {
+        cleanup();
+        question.status = "timeout";
+        resolve({
+          completed: false,
+          status: "timeout",
+          reason: "timeout",
+        });
+      }, timeout);
     });
   }
 
@@ -308,26 +304,10 @@ export class SessionManager {
     const timeout = input.timeout ?? DEFAULT_ANSWER_TIMEOUT_MS;
 
     return new Promise<GetNextAnswerOutput>((resolve) => {
-      const timeoutId = setTimeout(() => {
-        // Remove waiter
-        const waiters = this.sessionWaiters.get(input.session_id) || [];
-        const idx = waiters.indexOf(waiterCallback);
-        if (idx >= 0) waiters.splice(idx, 1);
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-        resolve({
-          completed: false,
-          status: "timeout",
-          reason: "timeout",
-        });
-      }, timeout);
-
-      const waiterCallback = (questionId: string, response: unknown) => {
-        clearTimeout(timeoutId);
-        // Remove this waiter
-        const waiters = this.sessionWaiters.get(input.session_id) || [];
-        const idx = waiters.indexOf(waiterCallback);
-        if (idx >= 0) waiters.splice(idx, 1);
-
+      const cleanup = this.sessionWaiters.registerWaiter(input.session_id, ({ questionId, response }) => {
+        if (timeoutId) clearTimeout(timeoutId);
         const question = session.questions.get(questionId);
         resolve({
           completed: true,
@@ -336,12 +316,17 @@ export class SessionManager {
           status: "answered",
           response,
         });
-      };
+      });
 
-      // Register session-level waiter
-      const waiters = this.sessionWaiters.get(input.session_id) || [];
-      waiters.push(waiterCallback);
-      this.sessionWaiters.set(input.session_id, waiters);
+      // Set timeout
+      timeoutId = setTimeout(() => {
+        cleanup();
+        resolve({
+          completed: false,
+          status: "timeout",
+          reason: "timeout",
+        });
+      }, timeout);
     });
   }
 
@@ -369,12 +354,8 @@ export class SessionManager {
       session.wsClient.send(JSON.stringify(msg));
     }
 
-    // Notify waiters
-    const waiters = this.responseWaiters.get(questionId) || [];
-    for (const waiter of waiters) {
-      waiter({ cancelled: true });
-    }
-    this.responseWaiters.delete(questionId);
+    // Notify and clear all waiters for this question
+    this.responseWaiters.notifyAll(questionId, { cancelled: true });
 
     return { ok: true };
   }
@@ -454,21 +435,14 @@ export class SessionManager {
       question.answeredAt = new Date();
       question.response = message.answer;
 
-      // Notify question-specific waiters
-      const waiters = this.responseWaiters.get(message.id) || [];
-      for (const waiter of waiters) {
-        waiter(message.answer);
-      }
+      // Notify question-specific waiters (all of them)
+      this.responseWaiters.notifyAll(message.id, message.answer);
 
-      // Notify session-level waiters (for getNextAnswer)
-      const sessionWaiters = this.sessionWaiters.get(sessionId) || [];
-      // Only notify the first waiter (others will get subsequent answers)
-      if (sessionWaiters.length > 0) {
-        const waiter = sessionWaiters.shift()!;
-        waiter(message.id, message.answer);
-        this.sessionWaiters.set(sessionId, sessionWaiters);
-      }
-      this.responseWaiters.delete(message.id);
+      // Notify session-level waiters (only first one)
+      this.sessionWaiters.notifyFirst(sessionId, {
+        questionId: message.id,
+        response: message.answer,
+      });
     }
   }
 
