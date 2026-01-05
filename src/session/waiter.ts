@@ -95,3 +95,31 @@ export class WaiterManager<K, T> {
     this.waiters.delete(key);
   }
 }
+
+/**
+ * Result of waiting for a response
+ */
+export type WaitResult<T> = { ok: true; data: T } | { ok: false; reason: "timeout" };
+
+/**
+ * Wait for a response with timeout.
+ * Registers a waiter and returns a promise that resolves when notified or times out.
+ */
+export function waitForResponse<K, T>(manager: WaiterManager<K, T>, key: K, timeoutMs: number): Promise<WaitResult<T>> {
+  return new Promise((resolve) => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let cleanup: (() => void) | undefined;
+
+    // Register waiter
+    cleanup = manager.registerWaiter(key, (data) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      resolve({ ok: true, data });
+    });
+
+    // Set timeout
+    timeoutId = setTimeout(() => {
+      if (cleanup) cleanup();
+      resolve({ ok: false, reason: "timeout" });
+    }, timeoutMs);
+  });
+}

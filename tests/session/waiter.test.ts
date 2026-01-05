@@ -1,6 +1,6 @@
 // tests/session/waiter.test.ts
 import { describe, it, expect, beforeEach } from "bun:test";
-import { WaiterManager } from "../../src/session/waiter";
+import { WaiterManager, waitForResponse } from "../../src/session/waiter";
 
 describe("WaiterManager", () => {
   let manager: WaiterManager<string, unknown>;
@@ -109,5 +109,46 @@ describe("WaiterManager", () => {
 
       expect(manager.hasWaiters("key1")).toBe(false);
     });
+  });
+});
+
+describe("waitForResponse", () => {
+  let manager: WaiterManager<string, string>;
+
+  beforeEach(() => {
+    manager = new WaiterManager<string, string>();
+  });
+
+  it("should resolve when waiter is notified", async () => {
+    const promise = waitForResponse(manager, "key1", 1000);
+
+    // Simulate async notification
+    setTimeout(() => manager.notifyFirst("key1", "result"), 10);
+
+    const result = await promise;
+    expect(result).toEqual({ ok: true, data: "result" });
+  });
+
+  it("should timeout if not notified in time", async () => {
+    const result = await waitForResponse(manager, "key1", 50);
+
+    expect(result).toEqual({ ok: false, reason: "timeout" });
+  });
+
+  it("should cleanup waiter on timeout", async () => {
+    await waitForResponse(manager, "key1", 50);
+
+    expect(manager.hasWaiters("key1")).toBe(false);
+  });
+
+  it("should cleanup timeout on success", async () => {
+    const promise = waitForResponse(manager, "key1", 1000);
+
+    setTimeout(() => manager.notifyFirst("key1", "result"), 10);
+
+    await promise;
+
+    // If timeout wasn't cleaned up, this would fail or hang
+    expect(manager.hasWaiters("key1")).toBe(false);
   });
 });
