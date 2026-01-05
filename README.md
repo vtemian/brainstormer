@@ -111,6 +111,8 @@ bun run build
 ```
 src/
 ├── index.ts              # Plugin entry point
+├── constants.ts          # Centralized configuration constants
+├── types.ts              # Shared type definitions
 ├── agents/
 │   ├── brainstormer.ts   # Orchestrator agent
 │   ├── bootstrapper.ts   # Fast initial questions
@@ -119,14 +121,34 @@ src/
 ├── session/
 │   ├── manager.ts        # Session lifecycle
 │   ├── server.ts         # HTTP/WebSocket server
-│   └── browser.ts        # Browser opener
+│   ├── browser.ts        # Browser opener
+│   └── waiter.ts         # Immutable waiter management
 ├── tools/
 │   ├── session.ts        # start_session, end_session
 │   ├── questions.ts      # Question type tools
-│   └── responses.ts      # get_answer, list_questions
+│   ├── responses.ts      # get_answer, list_questions
+│   └── brainstorm/
+│       ├── orchestrator.ts  # Brainstorm flow orchestration
+│       ├── probe.ts         # LLM probe for follow-ups
+│       ├── summarize.ts     # Design document generation
+│       ├── validation.ts    # Runtime type guards for LLM responses
+│       └── types.ts         # Brainstorm-specific types
 └── ui/
     └── bundle.ts         # Browser UI
 ```
+
+### Testing
+
+```bash
+bun test                    # Run all tests
+bun test --watch            # Watch mode
+bun test tests/session      # Run specific directory
+```
+
+Test coverage includes:
+- Unit tests for validation, waiter management, and session handling
+- Integration tests for full brainstorming flows
+- 150+ tests across 16 test files
 
 ## License
 
