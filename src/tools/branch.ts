@@ -222,7 +222,7 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
           question_id,
           response,
         ).catch((error) => {
-          console.error(`[brainstormer] Error processing answer ${question_id}:`, error);
+          console.error(`[octto] Error processing answer ${question_id}:`, error);
         });
         pendingProcessing.push(processing);
       }
@@ -397,7 +397,7 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
     try {
       await stateManager.recordAnswer(sessionId, questionId, answer);
     } catch (error) {
-      console.error(`[brainstormer] Failed to record answer for ${questionId}:`, error);
+      console.error(`[octto] Failed to record answer for ${questionId}:`, error);
       // Don't silently lose the answer - rethrow so caller knows processing failed
       throw error;
     }

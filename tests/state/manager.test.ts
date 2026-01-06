@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { rmSync } from "fs";
 import { StateManager } from "../../src/state/manager";
 
-const TEST_DIR = "/tmp/brainstorm-manager-test";
+const TEST_DIR = "/tmp/octto-manager-test";
 
 describe("StateManager", () => {
   let manager: StateManager;

@@ -5,7 +5,7 @@ import { createBranchTools } from "../../src/tools/branch";
 import { StateManager } from "../../src/state/manager";
 import { SessionManager } from "../../src/session/manager";
 
-const TEST_DIR = "/tmp/brainstorm-branch-test";
+const TEST_DIR = "/tmp/octto-branch-test";
 
 describe("Branch Tools", () => {
   let stateManager: StateManager;

@@ -1,18 +1,18 @@
 // src/index.ts
 import type { Plugin } from "@opencode-ai/plugin";
 import { SessionManager } from "./session/manager";
-import { createBrainstormerTools } from "./tools";
+import { createOcttoTools } from "./tools";
 import { agents } from "./agents";
-import { loadBrainstormerConfig, mergeAgentConfigs } from "./config-loader";
+import { loadOcttoConfig, mergeAgentConfigs } from "./config-loader";
 
-const BrainstormerPlugin: Plugin = async (ctx) => {
+const OcttoPlugin: Plugin = async (ctx) => {
   // Load user configuration and merge with default agents
-  const userConfig = await loadBrainstormerConfig();
+  const userConfig = await loadOcttoConfig();
   const mergedAgents = mergeAgentConfigs(agents, userConfig);
   const sessionManager = new SessionManager();
   const sessionsByOpenCodeSession = new Map<string, Set<string>>();
 
-  const baseTools = createBrainstormerTools(sessionManager, ctx.client);
+  const baseTools = createOcttoTools(sessionManager, ctx.client);
 
   // Wrap start_session to track for cleanup
   const originalStartSession = baseTools.start_session;
@@ -24,13 +24,13 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
 
       const sessionIdMatch = result.match(/ses_[a-z0-9]+/);
       if (sessionIdMatch && toolCtx.sessionID) {
-        const brainstormSessionId = sessionIdMatch[0];
+        const octtoSessionId = sessionIdMatch[0];
         const openCodeSessionId = toolCtx.sessionID;
 
         if (!sessionsByOpenCodeSession.has(openCodeSessionId)) {
           sessionsByOpenCodeSession.set(openCodeSessionId, new Set());
         }
-        sessionsByOpenCodeSession.get(openCodeSessionId)!.add(brainstormSessionId);
+        sessionsByOpenCodeSession.get(openCodeSessionId)!.add(octtoSessionId);
       }
 
       return result;
@@ -56,9 +56,9 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
         const openCodeSessionId = props?.info?.id;
 
         if (openCodeSessionId) {
-          const brainstormerSessions = sessionsByOpenCodeSession.get(openCodeSessionId);
-          if (brainstormerSessions) {
-            for (const sessionId of brainstormerSessions) {
+          const octtoSessions = sessionsByOpenCodeSession.get(openCodeSessionId);
+          if (octtoSessions) {
+            for (const sessionId of octtoSessions) {
               await sessionManager.endSession(sessionId);
             }
             sessionsByOpenCodeSession.delete(openCodeSessionId);
@@ -69,6 +69,6 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
   };
 };
 
-export default BrainstormerPlugin;
+export default OcttoPlugin;
 
 export type * from "./types";

@@ -8,7 +8,7 @@ import { createPushQuestionTool } from "./push-question";
 import { createBranchTools } from "./branch";
 import { StateManager } from "../state/manager";
 
-export function createBrainstormerTools(manager: SessionManager, _client?: OpencodeClient) {
+export function createOcttoTools(manager: SessionManager, _client?: OpencodeClient) {
   const stateManager = new StateManager();
 
   return {

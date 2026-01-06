@@ -49,7 +49,7 @@ describe("Streaming Answer Processing", () => {
       expect(r1.question_id).toBe(q1.question_id);
       expect(r1.response).toEqual({ selected: "simple" });
 
-      // At this point, brainstormer would spawn probe with partial context
+      // At this point, octto would spawn probe with partial context
       // Q2 and Q3 are still pending
 
       // User answers Q3 (out of order)

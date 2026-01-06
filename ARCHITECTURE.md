@@ -2,7 +2,7 @@
 
 ## Overview
 
-Brainstormer is an OpenCode plugin that enables interactive design exploration through a browser-based UI. It turns rough ideas into design documents by asking structured questions via a visual interface rather than terminal text.
+Octto is an OpenCode plugin that enables interactive design exploration through a browser-based UI. It turns rough ideas into design documents by asking structured questions via a visual interface rather than terminal text.
 
 ## Tech Stack
 
@@ -24,7 +24,7 @@ src/
 ├── types.ts              # Shared type definitions (configs, responses)
 ├── agents/               # AI agent definitions
 │   ├── index.ts          # Agent registry export
-│   ├── brainstormer.ts   # Orchestrator agent (coordinates flow)
+│   ├── octto.ts          # Orchestrator agent (coordinates flow)
 │   ├── bootstrapper.ts   # Generates initial questions (fast)
 │   ├── probe.ts          # Generates follow-up questions (thoughtful)
 │   └── context.ts        # Q&A context builder for probe
@@ -55,7 +55,7 @@ tests/
 - Implements OpenCode's `Plugin` interface
 - Creates `SessionManager` singleton
 - Wraps tools to track session ownership per OpenCode session
-- Handles `session.deleted` events to cleanup brainstormer sessions
+- Handles `session.deleted` events to cleanup octto sessions
 
 ### Multi-Agent Architecture
 
@@ -63,7 +63,7 @@ The plugin uses three specialized agents:
 
 | Agent | Role | Model | Mode |
 |-------|------|-------|------|
-| **brainstormer** | Orchestrator - coordinates flow, manages session | claude-opus-4-5 | primary |
+| **octto** | Orchestrator - coordinates flow, manages session | claude-opus-4-5 | primary |
 | **bootstrapper** | Generates 2-3 fast initial questions | claude-opus-4-5 | subagent |
 | **probe** | Generates thoughtful follow-ups based on context | claude-opus-4-5 | subagent |
 
@@ -72,7 +72,7 @@ The plugin uses three specialized agents:
 User Request
      │
      ▼
-brainstormer (orchestrator)
+octto (orchestrator)
      │
      ├──► bootstrapper → [q1, q2, q3]
      │                        │
@@ -94,7 +94,7 @@ brainstormer (orchestrator)
 
 ### SessionManager (`src/session/manager.ts`)
 
-Central state manager for all brainstorming sessions:
+Central state manager for all octto sessions:
 
 - **Sessions**: `Map<sessionId, Session>` - active sessions with their servers
 - **Questions**: Each session has `Map<questionId, Question>` - question queue

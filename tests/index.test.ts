@@ -17,7 +17,7 @@ function createMockContext(): PluginInput {
   };
 }
 
-describe("BrainstormerPlugin", () => {
+describe("OcttoPlugin", () => {
   describe("initialization", () => {
     it("should export a default plugin function", async () => {
       const { default: plugin } = await import("../src/index");

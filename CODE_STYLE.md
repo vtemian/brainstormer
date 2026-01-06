@@ -23,7 +23,7 @@
 | Constants | `camelCase` or `UPPER_SNAKE_CASE` | `wsUrl`, `DEFAULT_TIMEOUT` |
 | Private fields | `camelCase` (no prefix) | `this.sessions`, `this.options` |
 | Tool names | `snake_case` | `start_session`, `get_next_answer` |
-| Agent names | `lowercase` | `brainstormer`, `bootstrapper`, `probe` |
+| Agent names | `lowercase` | `octto`, `bootstrapper`, `probe` |
 
 ### ID Prefixes
 
@@ -60,17 +60,17 @@ Index files re-export public API:
 ```typescript
 // src/agents/index.ts
 import type { AgentConfig } from "@opencode-ai/sdk";
-import { brainstormerAgent } from "./brainstormer";
+import { octtoAgent } from "./octto";
 import { bootstrapperAgent } from "./bootstrapper";
 import { probeAgent } from "./probe";
 
 export const agents: Record<string, AgentConfig> = {
-  brainstormer: brainstormerAgent,
+  octto: octtoAgent,
   bootstrapper: bootstrapperAgent,
   probe: probeAgent,
 };
 
-export { brainstormerAgent, bootstrapperAgent, probeAgent };
+export { octtoAgent, bootstrapperAgent, probeAgent };
 ```
 
 ## Import Style
@@ -259,10 +259,10 @@ describe("SessionManager", () => {
 ## Logging
 
 - Use `console.error` for error logging
-- Prefix with `[brainstormer]` for identification
+- Prefix with `[octto]` for identification
 
 ```typescript
-console.error("[brainstormer] Failed to parse WebSocket message:", error);
+console.error("[octto] Failed to parse WebSocket message:", error);
 ```
 
 ## Do's and Don'ts

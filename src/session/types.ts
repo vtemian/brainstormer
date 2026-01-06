@@ -1,4 +1,4 @@
-// Session and Question types for the brainstormer plugin
+// Session and Question types for the octto plugin
 import type { ServerWebSocket } from "bun";
 
 export type QuestionStatus = "pending" | "answered" | "cancelled" | "timeout";

@@ -1,7 +1,7 @@
-// src/agents/brainstormer.ts
+// src/agents/octto.ts
 import type { AgentConfig } from "@opencode-ai/sdk";
 
-export const brainstormerAgent: AgentConfig = {
+export const octtoAgent: AgentConfig = {
   description: "Runs interactive brainstorming sessions using branch-based exploration",
   mode: "primary",
   model: "anthropic/claude-opus-4-5",

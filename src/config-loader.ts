@@ -14,26 +14,26 @@ export interface AgentOverride {
   maxTokens?: number;
 }
 
-export interface BrainstormerConfig {
+export interface OcttoConfig {
   agents?: Record<string, AgentOverride>;
 }
 
 /**
- * Load user configuration from ~/.config/opencode/brainstormer.json
+ * Load user configuration from ~/.config/opencode/octto.json
  * Returns null if file doesn't exist or is invalid.
  */
-export async function loadBrainstormerConfig(
+export async function loadOcttoConfig(
   configDir?: string,
-): Promise<BrainstormerConfig | null> {
+): Promise<OcttoConfig | null> {
   const baseDir = configDir ?? join(homedir(), ".config", "opencode");
-  const configPath = join(baseDir, "brainstormer.json");
+  const configPath = join(baseDir, "octto.json");
 
   try {
     const content = await readFile(configPath, "utf-8");
     const parsed = JSON.parse(content) as Record<string, unknown>;
 
     // Sanitize: only allow known safe properties
-    const config: BrainstormerConfig = {};
+    const config: OcttoConfig = {};
 
     if (parsed.agents && typeof parsed.agents === "object") {
       config.agents = {};
@@ -73,7 +73,7 @@ export async function loadBrainstormerConfig(
  */
 export function mergeAgentConfigs(
   pluginAgents: Record<string, AgentConfig>,
-  userConfig: BrainstormerConfig | null,
+  userConfig: OcttoConfig | null,
 ): Record<string, AgentConfig> {
   if (!userConfig?.agents) {
     return pluginAgents;

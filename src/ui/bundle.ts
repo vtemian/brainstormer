@@ -1,7 +1,7 @@
 // src/ui/bundle.ts
 
 /**
- * Returns the bundled HTML for the brainstormer UI.
+ * Returns the bundled HTML for the octto UI.
  * Uses nof1 design system - IBM Plex Mono, terminal aesthetic.
  */
 export function getHtmlBundle(): string {
@@ -10,7 +10,7 @@ export function getHtmlBundle(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Brainstormer</title>
+  <title>Octto</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -722,7 +722,7 @@ export function getHtmlBundle(): string {
 <body>
   <div id="root">
     <div class="header">
-      <h1>Brainstormer</h1>
+      <h1>Octto</h1>
       <p>Connecting to session...</p>
       <div class="spinner"></div>
     </div>
@@ -765,7 +765,7 @@ export function getHtmlBundle(): string {
       const root = document.getElementById('root');
       
       if (questions.length === 0) {
-        root.innerHTML = '<div class="header"><h1>Brainstormer</h1><p>Waiting for questions...</p></div>';
+        root.innerHTML = '<div class="header"><h1>Octto</h1><p>Waiting for questions...</p></div>';
         return;
       }
       

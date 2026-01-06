@@ -15,6 +15,6 @@ yarn.lock
 # OS files
 .DS_Store
 
-# Brainstorm state files
-.brainstorm/
+# Octto state files
+.octto/
 

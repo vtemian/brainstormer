@@ -1,11 +1,11 @@
 // src/agents/index.ts
 import type { AgentConfig } from "@opencode-ai/sdk";
-import { brainstormerAgent } from "./brainstormer";
+import { octtoAgent } from "./octto";
 import { bootstrapperAgent } from "./bootstrapper";
 
 export const agents: Record<string, AgentConfig> = {
-  brainstormer: brainstormerAgent,
+  octto: octtoAgent,
   bootstrapper: bootstrapperAgent,
 };
 
-export { brainstormerAgent, bootstrapperAgent };
+export { octtoAgent, bootstrapperAgent };

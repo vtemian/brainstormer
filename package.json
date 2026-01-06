@@ -1,7 +1,7 @@
 {
-  "name": "opencode-brainstormer",
+  "name": "octto",
   "version": "0.1.0",
-  "description": "Interactive UI tools for OpenCode agents - decisions, input, feedback, and more",
+  "description": "OpenCode plugin that turns rough ideas into designs through branch-based exploration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -28,10 +28,10 @@
   "keywords": [
     "opencode",
     "plugin",
-    "brainstormer",
+    "octto",
+    "brainstorm",
     "interactive",
-    "ui",
-    "forms"
+    "ui"
   ],
   "author": "vtemian",
   "license": "MIT",

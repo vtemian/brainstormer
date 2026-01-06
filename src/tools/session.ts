@@ -5,7 +5,7 @@ import type { QuestionType, QuestionConfig } from "../session/types";
 
 export function createSessionTools(manager: SessionManager) {
   const start_session = tool({
-    description: `Start an interactive brainstormer session with initial questions.
+    description: `Start an interactive octto session with initial questions.
 Opens a browser window with questions already displayed - no waiting.
 REQUIRED: You MUST provide at least 1 question. Will fail without questions.`,
     args: {
@@ -83,7 +83,7 @@ Please call start_session again WITH your prepared questions.`;
   });
 
   const end_session = tool({
-    description: `End an interactive brainstormer session.
+    description: `End an interactive octto session.
 Closes the browser window and cleans up resources.`,
     args: {
       session_id: tool.schema.string().describe("Session ID to end"),

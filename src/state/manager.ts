@@ -5,7 +5,7 @@ import type { BrainstormState, Branch, BranchQuestion, CreateBranchInput } from 
 export class StateManager {
   private persistence: StatePersistence;
 
-  constructor(baseDir: string = ".brainstorm") {
+  constructor(baseDir: string = ".octto") {
     this.persistence = new StatePersistence(baseDir);
   }
 

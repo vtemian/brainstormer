@@ -55,7 +55,7 @@ export async function createServer(
           const parsed = JSON.parse(message.toString()) as WsClientMessage;
           manager.handleWsMessage(sessionId, parsed);
         } catch (error) {
-          console.error("[brainstormer] Failed to parse WebSocket message:", error);
+          console.error("[octto] Failed to parse WebSocket message:", error);
           // Send error back to client so it can handle gracefully
           try {
             ws.send(JSON.stringify({

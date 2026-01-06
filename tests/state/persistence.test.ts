@@ -5,7 +5,7 @@ import { join } from "path";
 import { StatePersistence } from "../../src/state/persistence";
 import type { BrainstormState } from "../../src/state/types";
 
-const TEST_DIR = "/tmp/brainstorm-test";
+const TEST_DIR = "/tmp/octto-test";
 
 describe("StatePersistence", () => {
   let persistence: StatePersistence;
