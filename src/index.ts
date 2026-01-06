@@ -3,68 +3,48 @@
 import { agents } from "@agents";
 import { loadCustomConfig } from "@config";
 import type { Plugin } from "@opencode-ai/plugin";
-import type { ToolContext } from "@opencode-ai/plugin/tool";
 import { createSessionStore } from "@session";
 import { createOcttoTools } from "@tools";
 
 const Octto: Plugin = async (ctx) => {
   const customConfig = await loadCustomConfig(agents);
-
   const sessions = createSessionStore();
-  const sessionsByOpenCodeSession = new Map<string, Set<string>>();
+  const tracked = new Map<string, Set<string>>();
+  const tools = createOcttoTools(sessions, ctx.client);
 
-  const baseTools = createOcttoTools(sessions, ctx.client);
+  const originalExecute = tools.start_session.execute;
+  tools.start_session.execute = async (args, toolCtx) => {
+    const result = await originalExecute(args, toolCtx);
+    const match = result.match(/ses_[a-z0-9]+/);
 
-  // Wrap start_session to track for cleanup
-  const originalStartSession = baseTools.start_session;
-  const wrappedStartSession = {
-    ...originalStartSession,
-    execute: async (args: Record<string, unknown>, toolCtx: ToolContext) => {
-      type StartSessionArgs = Parameters<typeof originalStartSession.execute>[0];
-      const result = await originalStartSession.execute(args as StartSessionArgs, toolCtx);
-
-      const sessionIdMatch = result.match(/ses_[a-z0-9]+/);
-      if (sessionIdMatch && toolCtx.sessionID) {
-        const octtoSessionId = sessionIdMatch[0];
-        const openCodeSessionId = toolCtx.sessionID;
-
-        if (!sessionsByOpenCodeSession.has(openCodeSessionId)) {
-          sessionsByOpenCodeSession.set(openCodeSessionId, new Set());
-        }
-        sessionsByOpenCodeSession.get(openCodeSessionId)!.add(octtoSessionId);
+    if (match && toolCtx.sessionID) {
+      if (!tracked.has(toolCtx.sessionID)) {
+        tracked.set(toolCtx.sessionID, new Set());
       }
+      tracked.get(toolCtx.sessionID)!.add(match[0]);
+    }
 
-      return result;
-    },
+    return result;
   };
 
   return {
-    tool: {
-      ...baseTools,
-      start_session: wrappedStartSession,
-    },
+    tool: tools,
 
     config: async (config) => {
-      config.agent = {
-        ...config.agent,
-        ...customConfig,
-      };
+      config.agent = { ...config.agent, ...customConfig };
     },
 
     event: async ({ event }) => {
-      if (event.type === "session.deleted") {
-        const props = event.properties as { info?: { id?: string } } | undefined;
-        const openCodeSessionId = props?.info?.id;
+      if (event.type !== "session.deleted") return;
 
-        if (openCodeSessionId) {
-          const octtoSessions = sessionsByOpenCodeSession.get(openCodeSessionId);
-          if (octtoSessions) {
-            for (const sessionId of octtoSessions) {
-              await sessions.endSession(sessionId);
-            }
-            sessionsByOpenCodeSession.delete(openCodeSessionId);
-          }
+      const id = (event.properties as { info?: { id?: string } })?.info?.id;
+      const octtoSessions = id && tracked.get(id);
+
+      if (octtoSessions) {
+        for (const sessionId of octtoSessions) {
+          await sessions.endSession(sessionId);
         }
+        tracked.delete(id);
       }
     },
   };
