@@ -9,11 +9,7 @@ export class StateManager {
     this.persistence = new StatePersistence(baseDir);
   }
 
-  async createSession(
-    sessionId: string,
-    request: string,
-    branches: CreateBranchInput[],
-  ): Promise<BrainstormState> {
+  async createSession(sessionId: string, request: string, branches: CreateBranchInput[]): Promise<BrainstormState> {
     const branchMap: Record<string, Branch> = {};
     const branchOrder: string[] = [];
 
@@ -53,11 +49,7 @@ export class StateManager {
     await this.persistence.save(state);
   }
 
-  async addQuestionToBranch(
-    sessionId: string,
-    branchId: string,
-    question: BranchQuestion,
-  ): Promise<BranchQuestion> {
+  async addQuestionToBranch(sessionId: string, branchId: string, question: BranchQuestion): Promise<BranchQuestion> {
     const state = await this.persistence.load(sessionId);
     if (!state) throw new Error(`Session not found: ${sessionId}`);
     if (!state.branches[branchId]) throw new Error(`Branch not found: ${branchId}`);

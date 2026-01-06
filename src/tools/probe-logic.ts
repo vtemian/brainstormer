@@ -1,8 +1,8 @@
 // src/tools/probe-logic.ts
 // Inline probe logic - evaluates branch context and decides next action
 
-import type { Branch } from "@state";
 import type { QuestionConfig } from "@session";
+import type { Branch } from "@state";
 
 export interface ProbeResult {
   done: boolean;
@@ -120,7 +120,7 @@ function synthesizeFinding(branch: Branch): string {
 /**
  * Extracts a readable summary from an answer
  */
-function extractAnswerSummary(questionText: string, answer: Record<string, unknown>): string {
+function extractAnswerSummary(_questionText: string, answer: Record<string, unknown>): string {
   // Handle different answer formats
   if (answer.selected) {
     const selected = answer.selected;
@@ -153,7 +153,10 @@ function extractAnswerSummary(questionText: string, answer: Record<string, unkno
     if (entries.length === 0) return "no ratings";
     // Show top-rated items
     const sorted = entries.sort((a, b) => b[1] - a[1]);
-    return sorted.slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(", ");
+    return sorted
+      .slice(0, 3)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
   }
 
   // Fallback: try to extract any meaningful value

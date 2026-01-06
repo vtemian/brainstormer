@@ -1,7 +1,7 @@
 // src/tools/questions.ts
 import { tool } from "@opencode-ai/plugin/tool";
 import type { SessionManager } from "@session";
-import type { PickOneConfig, PickManyConfig, ConfirmConfig, RankConfig, RateConfig } from "../types";
+import type { ConfirmConfig, PickManyConfig, PickOneConfig, RankConfig, RateConfig } from "../types";
 
 export function createQuestionTools(manager: SessionManager) {
   const pick_one = tool({

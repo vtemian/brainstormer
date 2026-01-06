@@ -1,10 +1,10 @@
-import { readFile } from "fs/promises";
-import { join } from "path";
-import { homedir } from "os";
-import * as v from "valibot";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import type { AGENTS } from "@agents";
 import type { AgentConfig } from "@opencode-ai/sdk";
-import { OcttoConfigSchema, type OcttoConfig } from "./schema";
-import { AGENTS } from "@agents";
+import * as v from "valibot";
+import { type OcttoConfig, OcttoConfigSchema } from "./schema";
 
 export type { AgentOverride, OcttoConfig } from "./schema";
 
@@ -12,9 +12,7 @@ export type { AgentOverride, OcttoConfig } from "./schema";
  * Load user configuration from ~/.config/opencode/octto.json
  * Returns null if file doesn't exist or is invalid.
  */
-export async function loadConfig(
-  configDir?: string,
-): Promise<OcttoConfig | null> {
+export async function loadConfig(configDir?: string): Promise<OcttoConfig | null> {
   const baseDir = configDir ?? join(homedir(), ".config", "opencode");
   const configPath = join(baseDir, "octto.json");
 

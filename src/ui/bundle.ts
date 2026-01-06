@@ -1152,7 +1152,7 @@ export function getHtmlBundle(): string {
       const emojis = q.config.emojis || ['👍', '👎', '❤️', '🎉', '😕', '🚀'];
       html += '<div class="emoji-grid">';
       for (const emoji of emojis) {
-        html += '<button class="emoji-btn" onclick="submitAnswer(\\'' + q.id + '\\', {emoji: \\'' + emoji + '\\'})\">' + emoji + '</button>';
+        html += '<button class="emoji-btn" onclick="submitAnswer(\\'' + q.id + '\\', {emoji: \\'' + emoji + '\\'})">' + emoji + '</button>';
       }
       html += '</div>';
       return html;

@@ -1,3 +1,3 @@
-export { SessionManager } from "./manager";
 export type { SessionManagerOptions } from "./manager";
-export type { QuestionType, QuestionConfig } from "./types";
+export { SessionManager } from "./manager";
+export type { QuestionConfig, QuestionType } from "./types";

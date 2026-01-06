@@ -1,7 +1,7 @@
 // src/tools/branch.ts
 import { tool } from "@opencode-ai/plugin/tool";
+import type { QuestionConfig, QuestionType, SessionManager } from "@session";
 import type { StateManager } from "@state";
-import type { SessionManager, QuestionType, QuestionConfig } from "@session";
 import { evaluateBranch } from "./probe-logic";
 
 function generateId(prefix: string): string {
@@ -64,8 +64,7 @@ export function createBranchTools(stateManager: StateManager, sessionManager: Se
         const questionId = browserSession.question_ids?.[i];
         if (questionId) {
           const questionText =
-            typeof branch.initial_question.config === "object" &&
-            "question" in branch.initial_question.config
+            typeof branch.initial_question.config === "object" && "question" in branch.initial_question.config
               ? String(branch.initial_question.config.question)
               : "Question";
 
@@ -167,7 +166,6 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
       browser_session_id: tool.schema.string().describe("Browser session ID (for collecting answers)"),
     },
     execute: async (args) => {
-
       const pendingProcessing: Promise<void>[] = [];
       let iterations = 0;
       const maxIterations = 50; // Safety limit
@@ -212,17 +210,13 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
           continue;
         }
 
-
         // NON-BLOCKING: Fire off async processing (NO stale state passed)
         // Wrap in error handler to prevent unhandled rejections
-        const processing = processAnswerAsync(
-          args.session_id,
-          args.browser_session_id,
-          question_id,
-          response,
-        ).catch((error) => {
-          console.error(`[octto] Error processing answer ${question_id}:`, error);
-        });
+        const processing = processAnswerAsync(args.session_id, args.browser_session_id, question_id, response).catch(
+          (error) => {
+            console.error(`[octto] Error processing answer ${question_id}:`, error);
+          },
+        );
         pendingProcessing.push(processing);
       }
 
@@ -283,18 +277,14 @@ Some branches still exploring. Call await_brainstorm_complete again to continue.
 
       // Push show_plan to browser
       // Wrap in try-catch in case session was deleted between completion check and push
-      let reviewQuestionId: string;
+      let _reviewQuestionId: string;
       try {
-        const pushResult = sessionManager.pushQuestion(
-          args.browser_session_id,
-          "show_plan",
-          {
-            question: "Review Design Plan",
-            sections,
-          } as QuestionConfig,
-        );
-        reviewQuestionId = pushResult.question_id;
-      } catch (error) {
+        const pushResult = sessionManager.pushQuestion(args.browser_session_id, "show_plan", {
+          question: "Review Design Plan",
+          sections,
+        } as QuestionConfig);
+        _reviewQuestionId = pushResult.question_id;
+      } catch (_error) {
         // Session gone - return findings without review
         const findings = finalState.branch_order
           .map((id) => {
@@ -338,7 +328,6 @@ Write the design document to docs/plans/.`;
         }
       }
 
-
       const findings = finalState.branch_order
         .map((id) => {
           const b = finalState.branches[id];
@@ -367,7 +356,6 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
     questionId: string,
     answer: unknown,
   ): Promise<void> {
-
     // Get FRESH state (not stale)
     const state = await stateManager.getSession(sessionId);
     if (!state) {
@@ -441,7 +429,6 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
         text: questionText,
         config: configWithContext as QuestionConfig,
       });
-
     }
   }
 

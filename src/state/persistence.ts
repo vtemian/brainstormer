@@ -1,6 +1,6 @@
 // src/state/persistence.ts
-import { existsSync, mkdirSync, readdirSync, rmSync } from "fs";
-import { join } from "path";
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import type { BrainstormState } from "./types";
 
 export class StatePersistence {
@@ -55,8 +55,6 @@ export class StatePersistence {
       return [];
     }
     const files = readdirSync(this.baseDir);
-    return files
-      .filter((f) => f.endsWith(".json"))
-      .map((f) => f.replace(".json", ""));
+    return files.filter((f) => f.endsWith(".json")).map((f) => f.replace(".json", ""));
   }
 }

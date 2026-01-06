@@ -1,7 +1,7 @@
+import { getHtmlBundle } from "@ui";
 import type { Server, ServerWebSocket } from "bun";
 import type { SessionManager } from "./manager";
 import type { WsClientMessage } from "./types";
-import { getHtmlBundle } from "@ui";
 
 interface WsData {
   sessionId: string;
@@ -58,11 +58,13 @@ export async function createServer(
           console.error("[octto] Failed to parse WebSocket message:", error);
           // Send error back to client so it can handle gracefully
           try {
-            ws.send(JSON.stringify({
-              type: "error",
-              error: "Invalid message format",
-              details: error instanceof Error ? error.message : "Parse failed",
-            }));
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                error: "Invalid message format",
+                details: error instanceof Error ? error.message : "Parse failed",
+              }),
+            );
           } catch {
             // WebSocket might be closed, ignore send failure
           }

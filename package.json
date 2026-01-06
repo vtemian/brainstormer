@@ -15,6 +15,7 @@
     }
   },
   "scripts": {
+    "prepare": "lefthook install",
     "build": "bun build src/index.ts --outdir dist --target bun --format esm && tsc --emitDeclarationOnly",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",
     "bun-types": "latest",
+    "lefthook": "^2.0.13",
     "typescript": "^5.7.3"
   }
 }

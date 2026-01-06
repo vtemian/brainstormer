@@ -1,20 +1,20 @@
 // tests/agents/bootstrapper.test.ts
-import { describe, it, expect } from "bun:test";
-import { bootstrapperAgent } from "../../src/agents/bootstrapper";
+import { describe, expect, it } from "bun:test";
+import { bootstrapper } from "../../src/agents";
 
-describe("bootstrapperAgent", () => {
+describe("bootstrapper agent", () => {
   it("should have correct configuration", () => {
-    expect(bootstrapperAgent.mode).toBe("subagent");
-    expect(bootstrapperAgent.model).toBe("anthropic/claude-opus-4-5");
+    expect(bootstrapper.mode).toBe("subagent");
+    expect(bootstrapper.model).toBe("anthropic/claude-opus-4-5");
   });
 
   it("should have prompt that requests branches with scopes", () => {
-    expect(bootstrapperAgent.prompt).toContain("branches");
-    expect(bootstrapperAgent.prompt).toContain("scope");
-    expect(bootstrapperAgent.prompt).toContain("initial_question");
+    expect(bootstrapper.prompt).toContain("branches");
+    expect(bootstrapper.prompt).toContain("scope");
+    expect(bootstrapper.prompt).toContain("initial_question");
   });
 
   it("should request JSON output format", () => {
-    expect(bootstrapperAgent.prompt).toContain("JSON");
+    expect(bootstrapper.prompt).toContain("JSON");
   });
 });
