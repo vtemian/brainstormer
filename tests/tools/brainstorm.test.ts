@@ -1,23 +1,23 @@
-// tests/tools/branch.test.ts
+// tests/tools/brainstorm.test.ts
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { rmSync } from "node:fs";
 
 import { createSessionStore } from "../../src/session/sessions";
 import { createStateStore } from "../../src/state/store";
-import { createBranchTools } from "../../src/tools/branch";
+import { createBrainstormTools } from "../../src/tools/brainstorm";
 
-const TEST_DIR = "/tmp/octto-branch-test";
+const TEST_DIR = "/tmp/octto-brainstorm-test";
 
-describe("Branch Tools", () => {
+describe("Brainstorm Tools", () => {
   let stateStore: ReturnType<typeof createStateStore>;
   let sessions: ReturnType<typeof createSessionStore>;
-  let tools: ReturnType<typeof createBranchTools>;
+  let tools: ReturnType<typeof createBrainstormTools>;
 
   beforeEach(() => {
     rmSync(TEST_DIR, { recursive: true, force: true });
     stateStore = createStateStore(TEST_DIR);
     sessions = createSessionStore({ skipBrowser: true });
-    tools = createBranchTools(stateStore, sessions);
+    tools = createBrainstormTools(stateStore, sessions);
   });
 
   afterEach(() => {
