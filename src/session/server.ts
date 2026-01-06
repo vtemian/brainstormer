@@ -56,6 +56,16 @@ export async function createServer(
           manager.handleWsMessage(sessionId, parsed);
         } catch (error) {
           console.error("[brainstormer] Failed to parse WebSocket message:", error);
+          // Send error back to client so it can handle gracefully
+          try {
+            ws.send(JSON.stringify({
+              type: "error",
+              error: "Invalid message format",
+              details: error instanceof Error ? error.message : "Parse failed",
+            }));
+          } catch {
+            // WebSocket might be closed, ignore send failure
+          }
         }
       },
     },

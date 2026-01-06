@@ -215,12 +215,15 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
 
 
         // NON-BLOCKING: Fire off async processing (NO stale state passed)
+        // Wrap in error handler to prevent unhandled rejections
         const processing = processAnswerAsync(
           args.session_id,
           args.browser_session_id,
           question_id,
           response,
-        );
+        ).catch((error) => {
+          console.error(`[brainstormer] Error processing answer ${question_id}:`, error);
+        });
         pendingProcessing.push(processing);
       }
 
@@ -280,14 +283,37 @@ Some branches still exploring. Call await_brainstorm_complete again to continue.
       ];
 
       // Push show_plan to browser
-      const { question_id: reviewQuestionId } = sessionManager.pushQuestion(
-        args.browser_session_id,
-        "show_plan",
-        {
-          question: "Review Design Plan",
-          sections,
-        } as QuestionConfig,
-      );
+      // Wrap in try-catch in case session was deleted between completion check and push
+      let reviewQuestionId: string;
+      try {
+        const pushResult = sessionManager.pushQuestion(
+          args.browser_session_id,
+          "show_plan",
+          {
+            question: "Review Design Plan",
+            sections,
+          } as QuestionConfig,
+        );
+        reviewQuestionId = pushResult.question_id;
+      } catch (error) {
+        // Session gone - return findings without review
+        const findings = finalState.branch_order
+          .map((id) => {
+            const b = finalState.branches[id];
+            return `### ${id}\n**Scope:** ${b.scope}\n**Finding:** ${b.finding || "(no finding)"}`;
+          })
+          .join("\n\n");
+
+        return `## Brainstorm Complete (Review Skipped)
+
+**Request:** ${finalState.request}
+**Branches:** ${finalState.branch_order.length}
+**Note:** Browser session ended before review.
+
+${findings}
+
+Write the design document to docs/plans/.`;
+      }
 
       // Wait for review approval
       const reviewResult = await sessionManager.getNextAnswer({
@@ -371,7 +397,9 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
     try {
       await stateManager.recordAnswer(sessionId, questionId, answer);
     } catch (error) {
-      return;
+      console.error(`[brainstormer] Failed to record answer for ${questionId}:`, error);
+      // Don't silently lose the answer - rethrow so caller knows processing failed
+      throw error;
     }
 
     // Get FRESH state after recording answer

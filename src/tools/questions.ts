@@ -6,7 +6,8 @@ import type { PickOneConfig, PickManyConfig, ConfirmConfig, RankConfig, RateConf
 export function createQuestionTools(manager: SessionManager) {
   const pick_one = tool({
     description: `Ask user to select ONE option from a list.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { selected: string } where selected is the chosen option id.`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -24,6 +25,9 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
     },
     execute: async (args) => {
       try {
+        if (!args.options || args.options.length === 0) {
+          return `Failed: options array must not be empty`;
+        }
         const config: PickOneConfig = {
           question: args.question,
           options: args.options,
@@ -40,7 +44,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 
   const pick_many = tool({
     description: `Ask user to select MULTIPLE options from a list.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { selected: string[] } where selected is array of chosen option ids.`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -60,6 +65,12 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
     },
     execute: async (args) => {
       try {
+        if (!args.options || args.options.length === 0) {
+          return `Failed: options array must not be empty`;
+        }
+        if (args.min !== undefined && args.max !== undefined && args.min > args.max) {
+          return `Failed: min (${args.min}) cannot be greater than max (${args.max})`;
+        }
         const config: PickManyConfig = {
           question: args.question,
           options: args.options,
@@ -78,7 +89,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 
   const confirm = tool({
     description: `Ask user for Yes/No confirmation.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { choice: "yes" | "no" | "cancel" }`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -106,7 +118,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 
   const rank = tool({
     description: `Ask user to rank/order items by dragging.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { ranked: string[] } where ranked is array of option ids in user's order (first = highest).`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -123,6 +136,9 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
     },
     execute: async (args) => {
       try {
+        if (!args.options || args.options.length === 0) {
+          return `Failed: options array must not be empty`;
+        }
         const config: RankConfig = {
           question: args.question,
           options: args.options,
@@ -138,7 +154,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 
   const rate = tool({
     description: `Ask user to rate items on a numeric scale.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { ratings: Record<string, number> } where key is option id, value is rating.`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -157,11 +174,19 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
     },
     execute: async (args) => {
       try {
+        if (!args.options || args.options.length === 0) {
+          return `Failed: options array must not be empty`;
+        }
+        const min = args.min ?? 1;
+        const max = args.max ?? 5;
+        if (min >= max) {
+          return `Failed: min (${min}) must be less than max (${max})`;
+        }
         const config: RateConfig = {
           question: args.question,
           options: args.options,
-          min: args.min,
-          max: args.max,
+          min,
+          max,
           step: args.step,
         };
         const result = manager.pushQuestion(args.session_id, "rate", config);
@@ -193,7 +218,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 function createInputTools(manager: SessionManager) {
   const ask_text = tool({
     description: `Ask user for text input (single or multi-line).
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { text: string }`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -338,7 +364,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 
   const show_plan = tool({
     description: `Show a plan/document for user review with annotations.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { approved: boolean, annotations?: Record<sectionId, string> }`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Plan title"),
@@ -371,7 +398,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 
   const show_options = tool({
     description: `Show options with pros/cons for user to select.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { selected: string, feedback?: string } where selected is the chosen option id.`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -391,6 +419,9 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
     },
     execute: async (args) => {
       try {
+        if (!args.options || args.options.length === 0) {
+          return `Failed: options array must not be empty`;
+        }
         const config = {
           question: args.question,
           options: args.options,
@@ -436,7 +467,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 function createQuickTools(manager: SessionManager) {
   const thumbs = tool({
     description: `Ask user for quick thumbs up/down feedback.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { choice: "up" | "down" }`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
@@ -482,7 +514,8 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
 
   const slider = tool({
     description: `Ask user to select a value on a numeric slider.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+Returns immediately with question_id. Use get_answer to retrieve response.
+Response format: { value: number }`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
