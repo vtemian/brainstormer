@@ -4,6 +4,7 @@ import { tool } from "@opencode-ai/plugin/tool";
 import type { QuestionConfig, QuestionType, SessionStore } from "@/session";
 import type { StateStore } from "@/state";
 
+import { formatBranchStatus, formatFindings, formatFindingsList, formatQASummary } from "./formatters";
 import { evaluateBranch } from "./probe-logic";
 import type { OcttoTools } from "./types";
 
@@ -103,14 +104,7 @@ Call get_next_answer(session_id="${browserSession.session_id}", block=true) to c
       const state = await stateStore.getSession(args.session_id);
       if (!state) return `Error: Session not found: ${args.session_id}`;
 
-      const branchSummaries = state.branch_order
-        .map((id) => {
-          const b = state.branches[id];
-          const status = b.status === "done" ? "DONE" : "EXPLORING";
-          const finding = b.finding || "(no finding yet)";
-          return `### ${id} [${status}]\n**Scope:** ${b.scope}\n**Finding:** ${finding}`;
-        })
-        .join("\n\n");
+      const branchSummaries = state.branch_order.map((id) => formatBranchStatus(state.branches[id])).join("\n\n");
 
       const allDone = Object.values(state.branches).every((b) => b.status === "done");
 
@@ -137,13 +131,7 @@ ${branchSummaries}`;
         await sessions.endSession(state.browser_session_id);
       }
 
-      // Build final summary
-      const findings = state.branch_order
-        .map((id) => {
-          const b = state.branches[id];
-          return `- **${b.scope}:** ${b.finding || "(no finding)"}`;
-        })
-        .join("\n");
+      const findings = formatFindingsList(state);
 
       // Clean up state file
       await stateStore.deleteSession(args.session_id);
@@ -235,12 +223,7 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
       const allComplete = Object.values(finalState.branches).every((b) => b.status === "done");
 
       if (!allComplete) {
-        const findings = finalState.branch_order
-          .map((id) => {
-            const b = finalState.branches[id];
-            return `### ${id}\n**Scope:** ${b.scope}\n**Status:** ${b.status}\n**Finding:** ${b.finding || "(pending)"}`;
-          })
-          .join("\n\n");
+        const findings = finalState.branch_order.map((id) => formatBranchStatus(finalState.branches[id])).join("\n\n");
 
         return `## Brainstorm In Progress
 
@@ -261,15 +244,7 @@ Some branches still exploring. Call await_brainstorm_complete again to continue.
         },
         ...finalState.branch_order.map((id) => {
           const b = finalState.branches[id];
-          const qaSummary = b.questions
-            .filter((q) => q.answer !== undefined)
-            .map((q) => {
-              const ans = q.answer as Record<string, unknown>;
-              const answerText = ans.selected || ans.choice || ans.text || JSON.stringify(ans);
-              return `- **${q.text}**\n  → ${answerText}`;
-            })
-            .join("\n");
-
+          const qaSummary = formatQASummary(b);
           return {
             id,
             title: b.scope,
@@ -279,30 +254,20 @@ Some branches still exploring. Call await_brainstorm_complete again to continue.
       ];
 
       // Push show_plan to browser
-      // Wrap in try-catch in case session was deleted between completion check and push
-      let _reviewQuestionId: string;
       try {
-        const pushResult = sessions.pushQuestion(args.browser_session_id, "show_plan", {
+        sessions.pushQuestion(args.browser_session_id, "show_plan", {
           question: "Review Design Plan",
           sections,
         } as QuestionConfig);
-        _reviewQuestionId = pushResult.question_id;
-      } catch (_error) {
+      } catch {
         // Session gone - return findings without review
-        const findings = finalState.branch_order
-          .map((id) => {
-            const b = finalState.branches[id];
-            return `### ${id}\n**Scope:** ${b.scope}\n**Finding:** ${b.finding || "(no finding)"}`;
-          })
-          .join("\n\n");
-
         return `## Brainstorm Complete (Review Skipped)
 
 **Request:** ${finalState.request}
 **Branches:** ${finalState.branch_order.length}
 **Note:** Browser session ended before review.
 
-${findings}
+${formatFindings(finalState)}
 
 Write the design document to docs/plans/.`;
       }
@@ -331,13 +296,6 @@ Write the design document to docs/plans/.`;
         }
       }
 
-      const findings = finalState.branch_order
-        .map((id) => {
-          const b = finalState.branches[id];
-          return `### ${id}\n**Scope:** ${b.scope}\n**Finding:** ${b.finding || "(no finding)"}`;
-        })
-        .join("\n\n");
-
       return `## Brainstorm Complete
 
 **Request:** ${finalState.request}
@@ -346,7 +304,7 @@ Write the design document to docs/plans/.`;
 **Review Status:** ${approved ? "APPROVED" : "CHANGES REQUESTED"}
 ${feedback ? `**Feedback:** ${feedback}` : ""}
 
-${findings}
+${formatFindings(finalState)}
 
 ${approved ? "Design approved. Write the design document to docs/plans/." : "Changes requested. Review feedback and discuss with user before proceeding."}`;
     },

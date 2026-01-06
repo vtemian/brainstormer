@@ -4,200 +4,137 @@ import { tool } from "@opencode-ai/plugin/tool";
 import type { SessionStore } from "@/session";
 
 import type { ConfirmConfig, PickManyConfig, PickOneConfig, RankConfig, RateConfig } from "../types";
+import { createQuestionToolFactory } from "./question-factory";
 import type { OcttoTools } from "./types";
 
+const optionsSchema = tool.schema
+  .array(
+    tool.schema.object({
+      id: tool.schema.string().describe("Unique option identifier"),
+      label: tool.schema.string().describe("Display label"),
+      description: tool.schema.string().optional().describe("Optional description"),
+    }),
+  )
+  .describe("Available options");
+
+function requireOptions(args: { options?: unknown[] }): string | null {
+  if (!args.options || args.options.length === 0) return "options array must not be empty";
+  return null;
+}
+
 export function createQuestionTools(sessions: SessionStore): OcttoTools {
-  const pick_one = tool({
+  const createTool = createQuestionToolFactory(sessions);
+
+  const pick_one = createTool<PickOneConfig & { session_id: string }>({
+    type: "pick_one",
     description: `Ask user to select ONE option from a list.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { selected: string } where selected is the chosen option id.`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
-      options: tool.schema
-        .array(
-          tool.schema.object({
-            id: tool.schema.string().describe("Unique option identifier"),
-            label: tool.schema.string().describe("Display label"),
-            description: tool.schema.string().optional().describe("Optional description"),
-          }),
-        )
-        .describe("Available options"),
+      options: optionsSchema,
       recommended: tool.schema.string().optional().describe("Recommended option id (highlighted)"),
       allowOther: tool.schema.boolean().optional().describe("Allow custom 'other' input"),
     },
-    execute: async (args) => {
-      try {
-        if (!args.options || args.options.length === 0) {
-          return `Failed: options array must not be empty`;
-        }
-        const config: PickOneConfig = {
-          question: args.question,
-          options: args.options,
-          recommended: args.recommended,
-          allowOther: args.allowOther,
-        };
-        const result = sessions.pushQuestion(args.session_id, "pick_one", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    validate: requireOptions,
+    toConfig: (args) => ({
+      question: args.question,
+      options: args.options,
+      recommended: args.recommended,
+      allowOther: args.allowOther,
+    }),
   });
 
-  const pick_many = tool({
+  const pick_many = createTool<PickManyConfig & { session_id: string }>({
+    type: "pick_many",
     description: `Ask user to select MULTIPLE options from a list.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { selected: string[] } where selected is array of chosen option ids.`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
-      options: tool.schema
-        .array(
-          tool.schema.object({
-            id: tool.schema.string().describe("Unique option identifier"),
-            label: tool.schema.string().describe("Display label"),
-            description: tool.schema.string().optional().describe("Optional description"),
-          }),
-        )
-        .describe("Available options"),
+      options: optionsSchema,
       recommended: tool.schema.array(tool.schema.string()).optional().describe("Recommended option ids"),
       min: tool.schema.number().optional().describe("Minimum selections required"),
       max: tool.schema.number().optional().describe("Maximum selections allowed"),
       allowOther: tool.schema.boolean().optional().describe("Allow custom 'other' input"),
     },
-    execute: async (args) => {
-      try {
-        if (!args.options || args.options.length === 0) {
-          return `Failed: options array must not be empty`;
-        }
-        if (args.min !== undefined && args.max !== undefined && args.min > args.max) {
-          return `Failed: min (${args.min}) cannot be greater than max (${args.max})`;
-        }
-        const config: PickManyConfig = {
-          question: args.question,
-          options: args.options,
-          recommended: args.recommended,
-          min: args.min,
-          max: args.max,
-          allowOther: args.allowOther,
-        };
-        const result = sessions.pushQuestion(args.session_id, "pick_many", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
+    validate: (args) => {
+      if (!args.options || args.options.length === 0) return "options array must not be empty";
+      if (args.min !== undefined && args.max !== undefined && args.min > args.max) {
+        return `min (${args.min}) cannot be greater than max (${args.max})`;
       }
+      return null;
     },
+    toConfig: (args) => ({
+      question: args.question,
+      options: args.options,
+      recommended: args.recommended,
+      min: args.min,
+      max: args.max,
+      allowOther: args.allowOther,
+    }),
   });
 
-  const confirm = tool({
+  const confirm = createTool<ConfirmConfig & { session_id: string }>({
+    type: "confirm",
     description: `Ask user for Yes/No confirmation.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { choice: "yes" | "no" | "cancel" }`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       context: tool.schema.string().optional().describe("Additional context/details"),
       yesLabel: tool.schema.string().optional().describe("Custom label for yes button"),
       noLabel: tool.schema.string().optional().describe("Custom label for no button"),
       allowCancel: tool.schema.boolean().optional().describe("Show cancel option"),
     },
-    execute: async (args) => {
-      try {
-        const config: ConfirmConfig = {
-          question: args.question,
-          context: args.context,
-          yesLabel: args.yesLabel,
-          noLabel: args.noLabel,
-          allowCancel: args.allowCancel,
-        };
-        const result = sessions.pushQuestion(args.session_id, "confirm", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      context: args.context,
+      yesLabel: args.yesLabel,
+      noLabel: args.noLabel,
+      allowCancel: args.allowCancel,
+    }),
   });
 
-  const rank = tool({
+  const rank = createTool<RankConfig & { session_id: string }>({
+    type: "rank",
     description: `Ask user to rank/order items by dragging.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { ranked: string[] } where ranked is array of option ids in user's order (first = highest).`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
-      options: tool.schema
-        .array(
-          tool.schema.object({
-            id: tool.schema.string().describe("Unique option identifier"),
-            label: tool.schema.string().describe("Display label"),
-            description: tool.schema.string().optional().describe("Optional description"),
-          }),
-        )
-        .describe("Items to rank"),
+      options: optionsSchema.describe("Items to rank"),
       context: tool.schema.string().optional().describe("Instructions/context"),
     },
-    execute: async (args) => {
-      try {
-        if (!args.options || args.options.length === 0) {
-          return `Failed: options array must not be empty`;
-        }
-        const config: RankConfig = {
-          question: args.question,
-          options: args.options,
-          context: args.context,
-        };
-        const result = sessions.pushQuestion(args.session_id, "rank", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    validate: requireOptions,
+    toConfig: (args) => ({
+      question: args.question,
+      options: args.options,
+      context: args.context,
+    }),
   });
 
-  const rate = tool({
+  const rate = createTool<RateConfig & { session_id: string }>({
+    type: "rate",
     description: `Ask user to rate items on a numeric scale.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { ratings: Record<string, number> } where key is option id, value is rating.`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
-      options: tool.schema
-        .array(
-          tool.schema.object({
-            id: tool.schema.string().describe("Unique option identifier"),
-            label: tool.schema.string().describe("Display label"),
-            description: tool.schema.string().optional().describe("Optional description"),
-          }),
-        )
-        .describe("Items to rate"),
+      options: optionsSchema.describe("Items to rate"),
       min: tool.schema.number().optional().describe("Minimum rating value (default: 1)"),
       max: tool.schema.number().optional().describe("Maximum rating value (default: 5)"),
       step: tool.schema.number().optional().describe("Rating step (default: 1)"),
     },
-    execute: async (args) => {
-      try {
-        if (!args.options || args.options.length === 0) {
-          return `Failed: options array must not be empty`;
-        }
-        const min = args.min ?? 1;
-        const max = args.max ?? 5;
-        if (min >= max) {
-          return `Failed: min (${min}) must be less than max (${max})`;
-        }
-        const config: RateConfig = {
-          question: args.question,
-          options: args.options,
-          min,
-          max,
-          step: args.step,
-        };
-        const result = sessions.pushQuestion(args.session_id, "rate", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
+    validate: (args) => {
+      if (!args.options || args.options.length === 0) return "options array must not be empty";
+      const min = args.min ?? 1;
+      const max = args.max ?? 5;
+      if (min >= max) return `min (${min}) must be less than max (${max})`;
+      return null;
     },
+    toConfig: (args) => ({
+      question: args.question,
+      options: args.options,
+      min: args.min ?? 1,
+      max: args.max ?? 5,
+      step: args.step,
+    }),
   });
 
   // Import remaining tools from other files
