@@ -26,11 +26,8 @@ Optionally configure agent settings in `~/.config/opencode/brainstormer.json`:
 {
   "agents": {
     "brainstormer": {
-      "model": "anthropic/claude-sonnet-4",
-      "temperature": 0.5
-    },
-    "bootstrapper": {
-      "model": "anthropic/claude-haiku"
+      "model": "anthropic/claude-opus-4",
+      "temperature": 0.7
     }
   }
 }
@@ -38,7 +35,7 @@ Optionally configure agent settings in `~/.config/opencode/brainstormer.json`:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `model` | string | Model identifier (e.g., `anthropic/claude-opus-4`) |
+| `model` | string | Model identifier (e.g., `anthropic/claude-opus-4`, `anthropic/claude-sonnet-4`) |
 | `temperature` | number | Sampling temperature (0-1) |
 | `maxTokens` | number | Maximum response tokens |
 
