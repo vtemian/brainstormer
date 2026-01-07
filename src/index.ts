@@ -7,11 +7,11 @@ import { loadCustomConfig } from "@/config";
 import { createSessionStore } from "@/session";
 import { createOcttoTools } from "@/tools";
 
-const Octto: Plugin = async (ctx) => {
+const Octto: Plugin = async () => {
   const customConfig = await loadCustomConfig(agents);
   const sessions = createSessionStore();
   const tracked = new Map<string, Set<string>>();
-  const tools = createOcttoTools(sessions, ctx.client);
+  const tools = createOcttoTools(sessions);
 
   const originalExecute = tools.start_session.execute;
   tools.start_session.execute = async (args, toolCtx) => {

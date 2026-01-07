@@ -3,6 +3,7 @@ import { tool } from "@opencode-ai/plugin/tool";
 
 import type { QuestionConfig, QuestionType, SessionStore } from "@/session";
 import type { BrainstormState, StateStore } from "@/state";
+import { createStateStore } from "@/state";
 
 import { formatBranchStatus, formatFindings, formatFindingsList, formatQASummary } from "./formatters";
 import { processAnswer } from "./processor";
@@ -189,7 +190,8 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
 
 // --- Tool definitions ---
 
-export function createBrainstormTools(stateStore: StateStore, sessions: SessionStore): OcttoTools {
+export function createBrainstormTools(sessions: SessionStore): OcttoTools {
+  const stateStore = createStateStore();
   const create_brainstorm = tool({
     description: "Create a new brainstorm session with exploration branches",
     args: {

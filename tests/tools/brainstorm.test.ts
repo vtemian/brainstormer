@@ -3,25 +3,19 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { rmSync } from "node:fs";
 
 import { createSessionStore } from "../../src/session/sessions";
-import { createStateStore } from "../../src/state/store";
 import { createBrainstormTools } from "../../src/tools/brainstorm";
 
-const TEST_DIR = "/tmp/octto-brainstorm-test";
-
 describe("Brainstorm Tools", () => {
-  let stateStore: ReturnType<typeof createStateStore>;
   let sessions: ReturnType<typeof createSessionStore>;
   let tools: ReturnType<typeof createBrainstormTools>;
 
   beforeEach(() => {
-    rmSync(TEST_DIR, { recursive: true, force: true });
-    stateStore = createStateStore(TEST_DIR);
     sessions = createSessionStore({ skipBrowser: true });
-    tools = createBrainstormTools(stateStore, sessions);
+    tools = createBrainstormTools(sessions);
   });
 
   afterEach(() => {
-    rmSync(TEST_DIR, { recursive: true, force: true });
+    rmSync(".octto", { recursive: true, force: true });
   });
 
   describe("create_brainstorm", () => {
