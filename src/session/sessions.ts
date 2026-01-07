@@ -55,7 +55,6 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
   const store: SessionStore = {
     async startSession(input: StartSessionInput): Promise<StartSessionOutput> {
       const sessionId = generateSessionId();
-
       const { server, port } = await createServer(sessionId, store);
       const url = `http://localhost:${port}`;
 
@@ -69,39 +68,30 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
         wsConnected: false,
         server,
       };
-
       sessions.set(sessionId, session);
 
-      const questionIds: string[] = [];
-      if (input.questions && input.questions.length > 0) {
-        for (const q of input.questions) {
-          const questionId = generateQuestionId();
-          const question: Question = {
-            id: questionId,
-            sessionId,
-            type: q.type,
-            config: q.config,
-            status: STATUSES.PENDING,
-            createdAt: new Date(),
-          };
-          session.questions.set(questionId, question);
-          questionToSession.set(questionId, sessionId);
-          questionIds.push(questionId);
-        }
-      }
+      const questionIds = (input.questions ?? []).map((q) => {
+        const questionId = generateQuestionId();
+        const question: Question = {
+          id: questionId,
+          sessionId,
+          type: q.type,
+          config: q.config,
+          status: STATUSES.PENDING,
+          createdAt: new Date(),
+        };
+        session.questions.set(questionId, question);
+        questionToSession.set(questionId, sessionId);
+        return questionId;
+      });
 
       if (!options.skipBrowser) {
-        try {
-          await openBrowser(url);
-        } catch (error) {
-          // Clean up on browser open failure
+        await openBrowser(url).catch((error) => {
           sessions.delete(sessionId);
-          for (const qId of questionIds) {
-            questionToSession.delete(qId);
-          }
+          for (const qId of questionIds) questionToSession.delete(qId);
           server.stop();
           throw error;
-        }
+        });
       }
 
       return {
