@@ -86,10 +86,12 @@ async function runProbeAgent(client: OpencodeClient, state: BrainstormState, bra
       }
     }
 
+    console.log(`[octto] Probe raw response:\n${responseText}`);
+
     // Parse JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error("[octto] Probe response not valid JSON:", responseText);
+      console.error("[octto] Probe response not valid JSON");
       return { done: true, finding: "Could not parse probe response" };
     }
 
