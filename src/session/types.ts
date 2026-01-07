@@ -266,6 +266,14 @@ export interface ListQuestionsOutput {
 }
 
 // WebSocket message types
+export const WS_MESSAGES = {
+  QUESTION: "question",
+  CANCEL: "cancel",
+  END: "end",
+  RESPONSE: "response",
+  CONNECTED: "connected",
+} as const;
+
 export interface WsQuestionMessage {
   type: "question";
   id: string;

@@ -19,6 +19,7 @@ import {
   STATUSES,
   type StartSessionInput,
   type StartSessionOutput,
+  WS_MESSAGES,
   type WsClientMessage,
   type WsServerMessage,
 } from "./types";
@@ -116,7 +117,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       }
 
       if (session.wsClient) {
-        const msg: WsServerMessage = { type: "end" };
+        const msg: WsServerMessage = { type: WS_MESSAGES.END };
         session.wsClient.send(JSON.stringify(msg));
       }
 
@@ -155,7 +156,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
 
       if (session.wsConnected && session.wsClient) {
         const msg: WsServerMessage = {
-          type: "question",
+          type: WS_MESSAGES.QUESTION,
           id: questionId,
           questionType: type,
           config,
@@ -291,7 +292,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       question.status = STATUSES.CANCELLED;
 
       if (session.wsClient) {
-        const msg: WsServerMessage = { type: "cancel", id: questionId };
+        const msg: WsServerMessage = { type: WS_MESSAGES.CANCEL, id: questionId };
         session.wsClient.send(JSON.stringify(msg));
       }
 
@@ -333,7 +334,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       for (const question of session.questions.values()) {
         if (question.status === STATUSES.PENDING) {
           const msg: WsServerMessage = {
-            type: "question",
+            type: WS_MESSAGES.QUESTION,
             id: question.id,
             questionType: question.type,
             config: question.config,
@@ -352,11 +353,11 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     },
 
     handleWsMessage(sessionId: string, message: WsClientMessage): void {
-      if (message.type === "connected") {
+      if (message.type === WS_MESSAGES.CONNECTED) {
         return;
       }
 
-      if (message.type === "response") {
+      if (message.type === WS_MESSAGES.RESPONSE) {
         const session = sessions.get(sessionId);
         if (!session) return;
 

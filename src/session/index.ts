@@ -21,4 +21,4 @@ export type {
   SliderAnswer,
   ThumbsAnswer,
 } from "./types";
-export { QUESTION_TYPES, QUESTIONS, STATUSES } from "./types";
+export { QUESTION_TYPES, QUESTIONS, STATUSES, WS_MESSAGES } from "./types";
