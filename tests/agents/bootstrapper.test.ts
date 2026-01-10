@@ -6,7 +6,7 @@ import { bootstrapper } from "../../src/agents";
 describe("bootstrapper agent", () => {
   it("should have correct configuration", () => {
     expect(bootstrapper.mode).toBe("subagent");
-    expect(bootstrapper.model).toBe("anthropic/claude-opus-4-5");
+    expect(bootstrapper.model).toBe("openai/gpt-5.2-codex");
   });
 
   it("should have prompt that requests branches with scopes", () => {
