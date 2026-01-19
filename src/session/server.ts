@@ -12,11 +12,12 @@ interface WsData {
 export async function createServer(
   sessionId: string,
   store: SessionStore,
+  configuredPort?: number,
 ): Promise<{ server: Server<WsData>; port: number }> {
   const htmlBundle = getHtmlBundle();
 
   const server = Bun.serve<WsData>({
-    port: 0, // Random available port
+    port: configuredPort ?? 0,
     fetch(req, server) {
       const url = new URL(req.url);
 

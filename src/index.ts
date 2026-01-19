@@ -9,7 +9,7 @@ import { createOcttoTools } from "@/tools";
 
 const Octto: Plugin = async ({ client }) => {
   const customConfig = await loadCustomConfig(agents);
-  const sessions = createSessionStore();
+  const sessions = createSessionStore({ port: customConfig.port });
   const tracked = new Map<string, Set<string>>();
   const tools = createOcttoTools(sessions, client);
 
@@ -32,7 +32,7 @@ const Octto: Plugin = async ({ client }) => {
     tool: tools,
 
     config: async (config) => {
-      config.agent = { ...config.agent, ...customConfig };
+      config.agent = { ...config.agent, ...customConfig.agents };
     },
 
     event: async ({ event }) => {

@@ -10,8 +10,11 @@ export const AgentOverrideSchema = v.partial(
   }),
 );
 
+export const PortSchema = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(65535));
+
 export const OcttoConfigSchema = v.object({
   agents: v.optional(v.record(v.enum(AGENTS), AgentOverrideSchema)),
+  port: v.optional(PortSchema),
 });
 
 export type AgentOverride = v.InferOutput<typeof AgentOverrideSchema>;

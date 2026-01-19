@@ -29,6 +29,29 @@ describe("createSessionStore", () => {
       expect(result1.session_id).not.toBe(result2.session_id);
       expect(result1.url).not.toBe(result2.url);
     });
+
+    it("should use configured port when provided", async () => {
+      const fixedPortSessions = createSessionStore({ skipBrowser: true, port: 9876 });
+      try {
+        const result = await fixedPortSessions.startSession({ title: "Fixed Port Session" });
+        expect(result.url).toBe("http://localhost:9876");
+      } finally {
+        await fixedPortSessions.cleanup();
+      }
+    });
+
+    it("should use random port when port is 0", async () => {
+      const randomPortSessions = createSessionStore({ skipBrowser: true, port: 0 });
+      try {
+        const result = await randomPortSessions.startSession({});
+        expect(result.url).toMatch(/^http:\/\/localhost:\d+$/);
+        // Port should be assigned (not 0)
+        const port = parseInt(result.url.split(":")[2], 10);
+        expect(port).toBeGreaterThan(0);
+      } finally {
+        await randomPortSessions.cleanup();
+      }
+    });
   });
 
   describe("endSession", () => {

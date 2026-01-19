@@ -11,6 +11,26 @@ import { AgentOverrideSchema, type OcttoConfig, OcttoConfigSchema } from "./sche
 
 export type { AgentOverride, OcttoConfig } from "./schema";
 
+const OCTTO_PORT_ENV = "OCTTO_PORT";
+const DEFAULT_PORT = 0;
+
+/**
+ * Resolve port from environment variable or config.
+ * Priority: OCTTO_PORT env var > config port > default (0 = random)
+ */
+export function resolvePort(configPort?: number): number {
+  const envValue = process.env[OCTTO_PORT_ENV];
+
+  if (envValue !== undefined) {
+    const parsed = Number(envValue);
+    if (Number.isInteger(parsed) && parsed >= 0 && parsed <= 65535) {
+      return parsed;
+    }
+  }
+
+  return configPort ?? DEFAULT_PORT;
+}
+
 const VALID_AGENT_NAMES = Object.values(AGENTS);
 
 function formatValidationErrors(issues: v.BaseIssue<unknown>[]): string {
@@ -88,24 +108,27 @@ async function load(configDir?: string): Promise<OcttoConfig | null> {
   return { agents: validAgents };
 }
 
+export interface CustomConfig {
+  agents: Record<AGENTS, AgentConfig>;
+  port: number;
+}
+
 /**
  * Load user configuration and merge with plugin agents.
- * Returns merged agent configs with user overrides applied.
+ * Returns merged agent configs with user overrides applied, and resolved port.
  */
-export async function loadCustomConfig(
-  agents: Record<AGENTS, AgentConfig>,
-  configDir?: string,
-): Promise<Record<AGENTS, AgentConfig>> {
+export async function loadCustomConfig(agents: Record<AGENTS, AgentConfig>, configDir?: string): Promise<CustomConfig> {
   const config = await load(configDir);
 
-  if (!config?.agents) {
-    return agents;
+  const mergedAgents = { ...agents };
+  if (config?.agents) {
+    for (const [name, override] of Object.entries(config.agents)) {
+      mergedAgents[name as AGENTS] = { ...agents[name as AGENTS], ...override };
+    }
   }
 
-  const result = { ...agents };
-  for (const [name, override] of Object.entries(config.agents)) {
-    result[name as AGENTS] = { ...agents[name as AGENTS], ...override };
-  }
-
-  return result;
+  return {
+    agents: mergedAgents,
+    port: resolvePort(config?.port),
+  };
 }

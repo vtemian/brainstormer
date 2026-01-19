@@ -104,10 +104,30 @@ Optional `~/.config/opencode/octto.json`:
 
 ```json
 {
+  "port": 3000,
   "agents": {
     "probe": { "model": "anthropic/claude-sonnet-4" }
   }
 }
+```
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `port` | number | `0` (random) | Fixed port for the browser UI server |
+| `agents` | object | - | Override agent models/settings |
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `OCTTO_PORT` | Override port (takes precedence over config file) |
+
+For Docker workflows, set a fixed port:
+
+```bash
+OCTTO_PORT=3000 opencode
 ```
 
 ## Development

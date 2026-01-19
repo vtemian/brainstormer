@@ -29,6 +29,8 @@ import { createWaiters } from "./waiter";
 export interface SessionStoreOptions {
   /** Skip opening browser - useful for tests */
   skipBrowser?: boolean;
+  /** Fixed port for the server (0 = random available port) */
+  port?: number;
 }
 
 export interface SessionStore {
@@ -55,7 +57,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
   const store: SessionStore = {
     async startSession(input: StartSessionInput): Promise<StartSessionOutput> {
       const sessionId = generateSessionId();
-      const { server, port } = await createServer(sessionId, store);
+      const { server, port } = await createServer(sessionId, store, options.port);
       const url = `http://localhost:${port}`;
 
       const session: Session = {
