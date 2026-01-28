@@ -2,13 +2,28 @@
 
 import type { Plugin } from "@opencode-ai/plugin";
 
-import { agents } from "@/agents";
+import { AGENTS, agents } from "@/agents";
 import { loadCustomConfig } from "@/config";
+import { createFragmentInjector, getAgentSystemPromptPrefix, warnUnknownAgents } from "@/hooks";
 import { createSessionStore } from "@/session";
 import { createOcttoTools } from "@/tools";
 
-const Octto: Plugin = async ({ client }) => {
+const Octto: Plugin = async ({ client, directory }) => {
   const customConfig = await loadCustomConfig(agents);
+
+  // Load and merge fragments from global config and project config
+  const fragments = await createFragmentInjector({ projectDir: directory }, customConfig.fragments);
+
+  // Inject fragments into agent prompts at the source
+  for (const agentName of Object.values(AGENTS)) {
+    const prefix = getAgentSystemPromptPrefix(fragments, agentName);
+    if (prefix && customConfig.agents[agentName]?.prompt) {
+      customConfig.agents[agentName].prompt = prefix + customConfig.agents[agentName].prompt;
+    }
+  }
+
+  // Warn about unknown agent names in global config at startup
+  warnUnknownAgents(customConfig.fragments);
   const sessions = createSessionStore({ port: customConfig.port });
   const tracked = new Map<string, Set<string>>();
   const tools = createOcttoTools(sessions, client);
@@ -32,6 +47,7 @@ const Octto: Plugin = async ({ client }) => {
     tool: tools,
 
     config: async (config) => {
+      // Apply agent overrides from custom config (fragments already injected at plugin load)
       config.agent = { ...config.agent, ...customConfig.agents };
     },
 

@@ -7,9 +7,9 @@ import * as v from "valibot";
 
 import { AGENTS } from "@/agents";
 
-import { AgentOverrideSchema, type OcttoConfig, OcttoConfigSchema } from "./schema";
+import { AgentOverrideSchema, type Fragments, type OcttoConfig, OcttoConfigSchema } from "./schema";
 
-export type { AgentOverride, OcttoConfig } from "./schema";
+export type { AgentOverride, Fragments, OcttoConfig } from "./schema";
 
 const OCTTO_PORT_ENV = "OCTTO_PORT";
 const DEFAULT_PORT = 0;
@@ -111,6 +111,7 @@ async function load(configDir?: string): Promise<OcttoConfig | null> {
 export interface CustomConfig {
   agents: Record<AGENTS, AgentConfig>;
   port: number;
+  fragments: Fragments;
 }
 
 /**
@@ -130,5 +131,6 @@ export async function loadCustomConfig(agents: Record<AGENTS, AgentConfig>, conf
   return {
     agents: mergedAgents,
     port: resolvePort(config?.port),
+    fragments: config?.fragments,
   };
 }

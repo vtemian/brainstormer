@@ -117,6 +117,34 @@ Optional `~/.config/opencode/octto.json`:
 |--------|------|---------|-------------|
 | `port` | number | `0` (random) | Fixed port for the browser UI server |
 | `agents` | object | - | Override agent models/settings |
+| `fragments` | object | - | Custom instructions injected into agent prompts |
+
+### Fragments
+
+Inject custom instructions into agent prompts. Useful for customizing agent behavior per-project or globally.
+
+**Global config** (`~/.config/opencode/octto.json`):
+
+```json
+{
+  "fragments": {
+    "octto": ["Always suggest 3 implementation approaches"],
+    "probe": ["Include emoji in every question"],
+    "bootstrapper": ["Focus on technical feasibility"]
+  }
+}
+```
+
+**Project config** (`.octto/fragments.json` in your project root):
+
+```json
+{
+  "octto": ["This project uses React - focus on component patterns"],
+  "probe": ["Ask about testing strategy for each feature"]
+}
+```
+
+Fragments are merged: global fragments load first, project fragments append. Each fragment becomes a bullet point in a `<user-instructions>` block prepended to the agent's system prompt.
 
 ### Environment Variables
 
