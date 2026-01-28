@@ -1,3 +1,3 @@
-export type { AgentOverride, CustomConfig, OcttoConfig } from "./loader";
+export type { AgentOverride, CustomConfig, Fragments, OcttoConfig } from "./loader";
 export { loadCustomConfig, resolvePort } from "./loader";
-export { AgentOverrideSchema, OcttoConfigSchema, PortSchema } from "./schema";
+export { AgentOverrideSchema, FragmentsSchema, OcttoConfigSchema, PortSchema } from "./schema";

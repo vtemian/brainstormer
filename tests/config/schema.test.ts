@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 
 import * as v from "valibot";
 
-import { OcttoConfigSchema } from "../../src/config/schema";
+import { FragmentsSchema, OcttoConfigSchema } from "../../src/config/schema";
 
 describe("OcttoConfigSchema", () => {
   describe("port field", () => {
@@ -53,5 +53,87 @@ describe("OcttoConfigSchema", () => {
         expect(result.output.port).toBeUndefined();
       }
     });
+  });
+
+  describe("fragments field", () => {
+    it("should accept valid fragments for known agents", () => {
+      const result = v.safeParse(OcttoConfigSchema, {
+        fragments: {
+          octto: ["instruction 1", "instruction 2"],
+        },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.output.fragments?.octto).toEqual(["instruction 1", "instruction 2"]);
+      }
+    });
+
+    it("should accept fragments for multiple agents", () => {
+      const result = v.safeParse(OcttoConfigSchema, {
+        fragments: {
+          octto: ["octto instruction"],
+          bootstrapper: ["bootstrapper instruction"],
+          probe: ["probe instruction"],
+        },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.output.fragments?.octto).toEqual(["octto instruction"]);
+        expect(result.output.fragments?.bootstrapper).toEqual(["bootstrapper instruction"]);
+        expect(result.output.fragments?.probe).toEqual(["probe instruction"]);
+      }
+    });
+
+    it("should accept empty fragments array", () => {
+      const result = v.safeParse(OcttoConfigSchema, {
+        fragments: {
+          octto: [],
+        },
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.output.fragments?.octto).toEqual([]);
+      }
+    });
+
+    it("should allow config without fragments (optional)", () => {
+      const result = v.safeParse(OcttoConfigSchema, {});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.output.fragments).toBeUndefined();
+      }
+    });
+
+    it("should reject unknown agent names in fragments", () => {
+      const result = v.safeParse(OcttoConfigSchema, {
+        fragments: {
+          unknown_agent: ["instruction"],
+        },
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("should reject non-string values in fragments array", () => {
+      const result = v.safeParse(OcttoConfigSchema, {
+        fragments: {
+          octto: [123, "valid"],
+        },
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+});
+
+describe("FragmentsSchema", () => {
+  it("should be optional", () => {
+    const result = v.safeParse(FragmentsSchema, undefined);
+    expect(result.success).toBe(true);
+  });
+
+  it("should accept valid fragment record", () => {
+    const result = v.safeParse(FragmentsSchema, {
+      octto: ["instruction"],
+    });
+    expect(result.success).toBe(true);
   });
 });
